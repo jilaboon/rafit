@@ -83,11 +83,26 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
 export const { handlers, auth, signIn, signOut } = NextAuth({
   // Required for Vercel deployment - trust the host header
   trustHost: true,
+  // Debug mode to see what's happening
+  debug: process.env.NODE_ENV === 'development',
   // Note: Not using PrismaAdapter with JWT strategy + Credentials
   session: {
     strategy: 'jwt',
     maxAge: 24 * 60 * 60, // 24 hours
     updateAge: 60 * 60, // 1 hour
+  },
+  cookies: {
+    sessionToken: {
+      name: process.env.NODE_ENV === 'production'
+        ? '__Secure-authjs.session-token'
+        : 'authjs.session-token',
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+      },
+    },
   },
   pages: {
     signIn: '/login',

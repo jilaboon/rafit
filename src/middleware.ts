@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { getToken } from 'next-auth/jwt';
+import { auth } from '@/lib/auth/config';
 
 // Paths that don't require authentication
 const publicPaths = [
@@ -35,12 +35,10 @@ export async function middleware(request: NextRequest) {
   );
 
   if (isProtectedPath) {
-    const token = await getToken({
-      req: request,
-      secret: process.env.AUTH_SECRET,
-    });
+    // Use auth() from NextAuth v5 - this reads the session properly
+    const session = await auth();
 
-    if (!token) {
+    if (!session?.user) {
       // Redirect to login for page requests
       if (!pathname.startsWith('/api/')) {
         const url = new URL('/login', request.url);
@@ -54,12 +52,12 @@ export async function middleware(request: NextRequest) {
 
     // Add user info to headers for downstream use
     const response = NextResponse.next();
-    response.headers.set('x-user-id', token.id as string);
-    if (token.tenantId) {
-      response.headers.set('x-tenant-id', token.tenantId as string);
+    response.headers.set('x-user-id', session.user.id as string);
+    if (session.user.tenantId) {
+      response.headers.set('x-tenant-id', session.user.tenantId as string);
     }
-    if (token.role) {
-      response.headers.set('x-user-role', token.role as string);
+    if (session.user.role) {
+      response.headers.set('x-user-role', session.user.role as string);
     }
 
     return response;

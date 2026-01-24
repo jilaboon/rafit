@@ -2,18 +2,17 @@
 
 import { signIn } from '@/lib/auth/config';
 import { AuthError } from 'next-auth';
-import { redirect } from 'next/navigation';
 
 export async function loginAction(formData: FormData) {
-  const email = formData.get('email') as string;
-  const password = formData.get('password') as string;
   const callbackUrl = (formData.get('callbackUrl') as string) || '/dashboard';
 
   try {
+    // Pass formData directly - NextAuth v5 handles extraction
     await signIn('credentials', {
-      email,
-      password,
+      redirect: true,
       redirectTo: callbackUrl,
+      email: formData.get('email'),
+      password: formData.get('password'),
     });
   } catch (error) {
     if (error instanceof AuthError) {
@@ -24,7 +23,7 @@ export async function loginAction(formData: FormData) {
           return { error: 'אירעה שגיאה בהתחברות' };
       }
     }
-    // This is needed for the redirect to work
+    // NEXT_REDIRECT is thrown on success - must re-throw
     throw error;
   }
 }
