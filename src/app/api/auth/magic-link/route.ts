@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
     // TODO: Send email with magic link
     // For now, log the token in development
     if (process.env.NODE_ENV === 'development') {
+      // eslint-disable-next-line no-console
       console.log(`Magic link for ${user.email}: ${process.env.AUTH_URL}/api/auth/callback/email?token=${token}&email=${encodeURIComponent(user.email)}`);
     }
 

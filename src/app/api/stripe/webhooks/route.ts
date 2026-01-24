@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
 
     // Idempotency check
     if (await isEventProcessed(event.id)) {
-      console.log(`Event ${event.id} already processed, skipping`);
+      console.warn(`Event ${event.id} already processed, skipping`);
       return NextResponse.json({ received: true, skipped: true });
     }
 
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
       }
 
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        console.warn(`Unhandled event type: ${event.type}`);
     }
 
     // Mark event as processed
@@ -143,7 +143,7 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session) {
   const { customer, metadata, mode, subscription } = session;
 
   if (!metadata?.rafit_customer_id || !metadata?.rafit_plan_id) {
-    console.log('Missing RAFIT metadata in checkout session');
+    console.warn('Missing RAFIT metadata in checkout session');
     return;
   }
 
@@ -194,7 +194,7 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session) {
 }
 
 async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
-  const { customer, metadata, items } = subscription;
+  const { metadata } = subscription;
 
   if (!metadata?.rafit_customer_id || !metadata?.rafit_plan_id) {
     return;
