@@ -1,4 +1,4 @@
-import NextAuth from 'next-auth';
+import NextAuth, { type NextAuthConfig } from 'next-auth';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import Credentials from 'next-auth/providers/credentials';
 import Google from 'next-auth/providers/google';
@@ -11,26 +11,16 @@ const loginSchema = z.object({
   password: z.string().min(8),
 });
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: PrismaAdapter(prisma),
-  session: {
-    strategy: 'jwt',
-    maxAge: 24 * 60 * 60, // 24 hours
-    updateAge: 60 * 60, // 1 hour
-  },
-  pages: {
-    signIn: '/login',
-    error: '/login',
-    verifyRequest: '/verify-email',
-  },
-  providers: [
-    Credentials({
-      name: 'credentials',
-      credentials: {
-        email: { label: 'Email', type: 'email' },
-        password: { label: 'Password', type: 'password' },
-      },
-      async authorize(credentials) {
+// Build providers array conditionally
+const providers: NextAuthConfig['providers'] = [
+  Credentials({
+    name: 'credentials',
+    credentials: {
+      email: { label: 'Email', type: 'email' },
+      password: { label: 'Password', type: 'password' },
+    },
+    async authorize(credentials) {
+      try {
         const parsed = loginSchema.safeParse(credentials);
         if (!parsed.success) return null;
 
@@ -51,14 +41,38 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           name: user.name,
           image: user.avatarUrl,
         };
-      },
-    }),
+      } catch (error) {
+        console.error('Auth error:', error);
+        return null;
+      }
+    },
+  }),
+];
+
+// Only add Google provider if credentials are configured
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  providers.push(
     Google({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       allowDangerousEmailAccountLinking: true,
-    }),
-  ],
+    })
+  );
+}
+
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  adapter: PrismaAdapter(prisma),
+  session: {
+    strategy: 'jwt',
+    maxAge: 24 * 60 * 60, // 24 hours
+    updateAge: 60 * 60, // 1 hour
+  },
+  pages: {
+    signIn: '/login',
+    error: '/login',
+    verifyRequest: '/verify-email',
+  },
+  providers,
   callbacks: {
     async jwt({ token, user, trigger, session }) {
       if (user) {
