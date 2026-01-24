@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import prisma from '@/lib/db';
+import { Prisma } from '@prisma/client';
 import { requirePermission, handleAuthError } from '@/lib/auth/permissions';
 import { createAuditLog } from '@/lib/security/audit';
 
@@ -182,7 +183,7 @@ export async function PATCH(request: NextRequest) {
         ...(data.name !== undefined && { name: data.name }),
         ...(data.email !== undefined && { email: data.email }),
         ...(data.phone !== undefined && { phone: data.phone }),
-        settings: updatedSettings,
+        settings: updatedSettings as Prisma.InputJsonValue,
       },
       select: {
         id: true,
