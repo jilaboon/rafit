@@ -20,7 +20,13 @@ declare module 'next-auth' {
   }
 }
 
-// JWT types are inferred from the callbacks in auth config
+declare module 'next-auth/jwt' {
+  interface JWT {
+    id?: string;
+    tenantId?: string;
+    role?: string;
+  }
+}
 
 // API Response types
 export interface ApiResponse<T = unknown> {

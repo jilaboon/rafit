@@ -1,40 +1,67 @@
 'use client';
 
-import { Suspense, useState, useTransition } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { signIn } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff, Mail } from 'lucide-react';
-import { loginAction } from './actions';
 
 function LoginForm() {
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
-  const [isPending, startTransition] = useTransition();
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
 
-  const handleSubmit = (formData: FormData) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     setError(null);
-    formData.append('callbackUrl', callbackUrl);
+    setIsLoading(true);
 
-    startTransition(async () => {
-      const result = await loginAction(formData);
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get('email') as string;
+    const password = formData.get('password') as string;
+
+    try {
+      // Use next-auth/react signIn with redirect: false to handle errors
+      const result = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
+        callbackUrl,
+      });
+
+      console.log('SignIn result:', result);
+
       if (result?.error) {
-        setError(result.error);
+        setError('אימייל או סיסמה שגויים');
         toast({
           variant: 'destructive',
           title: 'שגיאה בהתחברות',
-          description: result.error,
+          description: 'אימייל או סיסמה שגויים',
         });
+      } else if (result?.ok) {
+        // Success - manually redirect
+        window.location.href = callbackUrl;
       }
-    });
+    } catch (err) {
+      console.error('Login error:', err);
+      setError('אירעה שגיאה בהתחברות');
+      toast({
+        variant: 'destructive',
+        title: 'שגיאה',
+        description: 'אירעה שגיאה בהתחברות',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -44,7 +71,7 @@ function LoginForm() {
         <CardDescription>התחבר לחשבון <span className="brand-name">RAFIT</span> שלך</CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">אימייל</Label>
             <Input
@@ -99,8 +126,8 @@ function LoginForm() {
             <p className="text-sm text-destructive text-center">{error}</p>
           )}
 
-          <Button type="submit" className="w-full" disabled={isPending}>
-            {isPending ? 'מתחבר...' : 'התחבר'}
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading ? 'מתחבר...' : 'התחבר'}
           </Button>
         </form>
 
@@ -117,7 +144,7 @@ function LoginForm() {
           type="button"
           variant="outline"
           className="w-full"
-          disabled={isPending}
+          disabled={isLoading}
         >
           <Mail className="ml-2 h-4 w-4" />
           שלח לי קישור התחברות
