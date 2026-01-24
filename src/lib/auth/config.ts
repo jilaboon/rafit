@@ -132,19 +132,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             token.originalUserId = token.id as string;
             token.impersonatedUserId = session.impersonatedUserId;
             // Fetch impersonated user's tenant info
-            const impersonatedUser = await prisma.tenantUser.findFirst({
-              where: {
-                userId: session.impersonatedUserId,
-                isActive: true,
-              },
-              select: {
-                tenantId: true,
-                role: true,
-              },
-            });
-            if (impersonatedUser) {
-              token.tenantId = impersonatedUser.tenantId;
-              token.role = impersonatedUser.role;
+            try {
+              const impersonatedUser = await prisma.tenantUser.findFirst({
+                where: {
+                  userId: session.impersonatedUserId,
+                  isActive: true,
+                },
+                select: {
+                  tenantId: true,
+                  role: true,
+                },
+              });
+              if (impersonatedUser) {
+                token.tenantId = impersonatedUser.tenantId;
+                token.role = impersonatedUser.role;
+              }
+            } catch (error) {
+              console.log('JWT: Error fetching impersonated user:', error);
             }
             console.log('JWT: Started impersonation of user:', session.impersonatedUserId);
           }
@@ -166,33 +170,43 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // Fetch user info if not already fetched (initial login or refresh)
         if (token.id && token.isSuperAdmin === undefined) {
           console.log('JWT: Fetching user info for:', token.id);
-          const dbUser = await prisma.user.findUnique({
-            where: { id: token.id as string },
-            select: { isSuperAdmin: true },
-          });
-          token.isSuperAdmin = dbUser?.isSuperAdmin ?? false;
-          console.log('JWT: isSuperAdmin=', token.isSuperAdmin);
+          try {
+            const dbUser = await prisma.user.findUnique({
+              where: { id: token.id as string },
+              select: { isSuperAdmin: true },
+            });
+            token.isSuperAdmin = dbUser?.isSuperAdmin ?? false;
+            console.log('JWT: isSuperAdmin=', token.isSuperAdmin);
+          } catch (error) {
+            // Column might not exist in DB yet - default to false
+            console.log('JWT: Error fetching isSuperAdmin, defaulting to false:', error);
+            token.isSuperAdmin = false;
+          }
         }
 
         // Fetch tenant info if not present and not a super admin without tenant
         if (token.id && !token.tenantId && !token.isImpersonating) {
           console.log('JWT: Fetching tenant info for user:', token.id);
-          const tenantUser = await prisma.tenantUser.findFirst({
-            where: {
-              userId: token.id as string,
-              isActive: true,
-            },
-            select: {
-              tenantId: true,
-              role: true,
-            },
-          });
-          if (tenantUser) {
-            token.tenantId = tenantUser.tenantId;
-            token.role = tenantUser.role;
-            console.log('JWT: Found tenant:', tenantUser.tenantId);
-          } else {
-            console.log('JWT: No tenant found for user');
+          try {
+            const tenantUser = await prisma.tenantUser.findFirst({
+              where: {
+                userId: token.id as string,
+                isActive: true,
+              },
+              select: {
+                tenantId: true,
+                role: true,
+              },
+            });
+            if (tenantUser) {
+              token.tenantId = tenantUser.tenantId;
+              token.role = tenantUser.role;
+              console.log('JWT: Found tenant:', tenantUser.tenantId);
+            } else {
+              console.log('JWT: No tenant found for user');
+            }
+          } catch (error) {
+            console.log('JWT: Error fetching tenant info:', error);
           }
         }
 
