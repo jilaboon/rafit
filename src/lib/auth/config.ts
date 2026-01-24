@@ -96,40 +96,55 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   providers,
   callbacks: {
     async jwt({ token, user, trigger, session }) {
-      if (user) {
-        token.id = user.id;
-      }
+      try {
+        console.log('JWT callback: trigger=', trigger, 'user=', !!user);
 
-      // Handle session updates
-      if (trigger === 'update' && session?.tenantId) {
-        token.tenantId = session.tenantId;
-      }
-
-      // Fetch tenant info if not present
-      if (token.id && !token.tenantId) {
-        const tenantUser = await prisma.tenantUser.findFirst({
-          where: {
-            userId: token.id as string,
-            isActive: true,
-          },
-          select: {
-            tenantId: true,
-            role: true,
-          },
-        });
-        if (tenantUser) {
-          token.tenantId = tenantUser.tenantId;
-          token.role = tenantUser.role;
+        if (user) {
+          token.id = user.id;
+          console.log('JWT: Set user id:', user.id);
         }
-      }
 
-      return token;
+        // Handle session updates
+        if (trigger === 'update' && session?.tenantId) {
+          token.tenantId = session.tenantId;
+        }
+
+        // Fetch tenant info if not present
+        if (token.id && !token.tenantId) {
+          console.log('JWT: Fetching tenant info for user:', token.id);
+          const tenantUser = await prisma.tenantUser.findFirst({
+            where: {
+              userId: token.id as string,
+              isActive: true,
+            },
+            select: {
+              tenantId: true,
+              role: true,
+            },
+          });
+          if (tenantUser) {
+            token.tenantId = tenantUser.tenantId;
+            token.role = tenantUser.role;
+            console.log('JWT: Found tenant:', tenantUser.tenantId);
+          } else {
+            console.log('JWT: No tenant found for user');
+          }
+        }
+
+        console.log('JWT: Returning token');
+        return token;
+      } catch (error) {
+        console.error('JWT callback error:', error);
+        return token;
+      }
     },
     async session({ session, token }) {
+      console.log('Session callback: token=', !!token);
       if (token && session.user) {
         session.user.id = token.id as string;
         session.user.tenantId = token.tenantId as string | undefined;
         session.user.role = token.role as string | undefined;
+        console.log('Session: Set user data, id=', session.user.id);
       }
       return session;
     },
