@@ -1,0 +1,671 @@
+// RAFIT Prisma Schema
+// PostgreSQL with Row-Level Security for multi-tenant isolation
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =====================================================
+// ENUMS
+// =====================================================
+
+enum UserRole {
+  OWNER       // Full access including billing and delete
+  ADMIN       // Full operational access
+  MANAGER     // Branch-level management
+  COACH       // Schedule view, own classes
+  FRONT_DESK  // Check-in, booking, basic CRM
+  ACCOUNTANT  // Financial reports, read-only operations
+  READ_ONLY   // View-only access
+}
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum BookingStatus {
+  CONFIRMED
+  CANCELLED
+  NO_SHOW
+  COMPLETED
+  WAITLISTED
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum MembershipType {
+  SUBSCRIPTION   // Recurring billing
+  PUNCH_CARD     // Fixed sessions
+  CREDITS        // Flexible credits
+  TRIAL          // Trial period
+  DROP_IN        // Single session
+}
+
+enum MembershipStatus {
+  ACTIVE
+  PAUSED
+  EXPIRED
+  CANCELLED
+}
+
+enum ServiceType {
+  GROUP_CLASS    // Group fitness class
+  PERSONAL       // 1:1 session
+  WORKSHOP       // Special event
+  COURSE         // Multi-session course
+}
+
+enum DayOfWeek {
+  SUNDAY
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  TRIAL
+  CONVERTED
+  LOST
+}
+
+enum AutomationTrigger {
+  BOOKING_CREATED
+  BOOKING_CANCELLED
+  NO_SHOW
+  MEMBERSHIP_CREATED
+  MEMBERSHIP_EXPIRING
+  MEMBERSHIP_EXPIRED
+  PAYMENT_FAILED
+  BIRTHDAY
+  INACTIVITY
+  CUSTOM
+}
+
+enum AutomationAction {
+  SEND_EMAIL
+  SEND_SMS
+  CREATE_TASK
+  ADD_TAG
+  REMOVE_TAG
+  NOTIFY_STAFF
+  WEBHOOK
+}
+
+// =====================================================
+// CORE TENANT & USER MODELS
+// =====================================================
+
+model Tenant {
+  id          String       @id @default(uuid()) @db.Uuid
+  name        String
+  slug        String       @unique
+  email       String?
+  phone       String?
+  logoUrl     String?      @map("logo_url")
+  timezone    String       @default("Asia/Jerusalem")
+  currency    String       @default("ILS")
+  locale      String       @default("he")
+  status      TenantStatus @default(ACTIVE)
+  settings    Json         @default("{}")
+
+  // Stripe
+  stripeCustomerId     String? @unique @map("stripe_customer_id")
+  stripeSubscriptionId String? @map("stripe_subscription_id")
+
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  deletedAt   DateTime?    @map("deleted_at")
+
+  // Relations
+  branches    Branch[]
+  tenantUsers TenantUser[]
+  services    Service[]
+  membershipPlans MembershipPlan[]
+  automations Automation[]
+
+  @@map("tenants")
+}
+
+model User {
+  id              String     @id @default(uuid()) @db.Uuid
+  email           String     @unique
+  emailVerifiedAt DateTime?  @map("email_verified_at")
+  passwordHash    String?    @map("password_hash")
+  name            String
+  phone           String?    // Consider encryption for PII
+  avatarUrl       String?    @map("avatar_url")
+  status          UserStatus @default(ACTIVE)
+
+  // MFA (Phase 4)
+  mfaEnabled      Boolean    @default(false) @map("mfa_enabled")
+  mfaSecret       String?    @map("mfa_secret")
+
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+  deletedAt       DateTime?  @map("deleted_at")
+
+  // Relations
+  tenantUsers     TenantUser[]
+  sessions        Session[]
+  accounts        Account[]
+  auditLogs       AuditLog[]       @relation("AuditLogUser")
+
+  @@map("users")
+}
+
+model TenantUser {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  role        UserRole  @default(READ_ONLY)
+  permissions Json      @default("{}") // Override permissions
+  isActive    Boolean   @default(true) @map("is_active")
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Coach-specific relations
+  staffProfile StaffProfile?
+
+  @@unique([tenantId, userId])
+  @@map("tenant_users")
+}
+
+// =====================================================
+// AUTH.JS MODELS
+// =====================================================
+
+model Account {
+  id                String  @id @default(uuid()) @db.Uuid
+  userId            String  @map("user_id") @db.Uuid
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(uuid()) @db.Uuid
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id") @db.Uuid
+  expires      DateTime
+  ipAddress    String?  @map("ip_address")
+  userAgent    String?  @map("user_agent")
+
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// =====================================================
+// BRANCH & LOCATION
+// =====================================================
+
+model Branch {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  name        String
+  slug        String
+  address     String?
+  city        String?
+  phone       String?
+  email       String?
+  timezone    String   @default("Asia/Jerusalem")
+  isActive    Boolean  @default(true) @map("is_active")
+  settings    Json     @default("{}")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Relations
+  rooms       Room[]
+  staffProfiles StaffProfile[]
+  classTemplates ClassTemplate[]
+  classInstances ClassInstance[]
+
+  @@unique([tenantId, slug])
+  @@map("branches")
+}
+
+model Room {
+  id          String   @id @default(uuid()) @db.Uuid
+  branchId    String   @map("branch_id") @db.Uuid
+  name        String
+  capacity    Int      @default(20)
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  branch      Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  classTemplates ClassTemplate[]
+  classInstances ClassInstance[]
+
+  @@map("rooms")
+}
+
+// =====================================================
+// STAFF & COACHES
+// =====================================================
+
+model StaffProfile {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantUserId  String   @unique @map("tenant_user_id") @db.Uuid
+  branchId      String?  @map("branch_id") @db.Uuid
+  title         String?
+  bio           String?
+  specialties   String[] @default([])
+  certifications String[] @default([])
+  hourlyRate    Decimal? @map("hourly_rate") @db.Decimal(10, 2)
+  color         String?  // Calendar color
+  isPublic      Boolean  @default(true) @map("is_public")
+
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  tenantUser    TenantUser @relation(fields: [tenantUserId], references: [id], onDelete: Cascade)
+  branch        Branch?    @relation(fields: [branchId], references: [id])
+
+  classTemplates ClassTemplate[]
+  classInstances ClassInstance[]
+
+  @@map("staff_profiles")
+}
+
+// =====================================================
+// SERVICES & CLASSES
+// =====================================================
+
+model Service {
+  id            String      @id @default(uuid()) @db.Uuid
+  tenantId      String      @map("tenant_id") @db.Uuid
+  name          String
+  description   String?
+  type          ServiceType @default(GROUP_CLASS)
+  duration      Int         @default(60) // minutes
+  defaultCapacity Int       @default(20) @map("default_capacity")
+  color         String?
+  price         Decimal?    @db.Decimal(10, 2)
+  creditCost    Int         @default(1) @map("credit_cost")
+  isActive      Boolean     @default(true) @map("is_active")
+  settings      Json        @default("{}")
+
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+  deletedAt     DateTime?   @map("deleted_at")
+
+  tenant        Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  classTemplates ClassTemplate[]
+
+  @@map("services")
+}
+
+model ClassTemplate {
+  id            String     @id @default(uuid()) @db.Uuid
+  branchId      String     @map("branch_id") @db.Uuid
+  serviceId     String     @map("service_id") @db.Uuid
+  coachId       String?    @map("coach_id") @db.Uuid
+  roomId        String?    @map("room_id") @db.Uuid
+  name          String?    // Override service name
+  dayOfWeek     DayOfWeek
+  startTime     String     @map("start_time") // HH:mm format
+  endTime       String     @map("end_time")
+  capacity      Int?       // Override service default
+  waitlistLimit Int        @default(10) @map("waitlist_limit")
+  isActive      Boolean    @default(true) @map("is_active")
+  validFrom     DateTime?  @map("valid_from")
+  validUntil    DateTime?  @map("valid_until")
+  settings      Json       @default("{}")
+
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+
+  branch        Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  service       Service    @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  coach         StaffProfile? @relation(fields: [coachId], references: [id])
+  room          Room?      @relation(fields: [roomId], references: [id])
+
+  classInstances ClassInstance[]
+
+  @@map("class_templates")
+}
+
+model ClassInstance {
+  id            String        @id @default(uuid()) @db.Uuid
+  branchId      String        @map("branch_id") @db.Uuid
+  templateId    String?       @map("template_id") @db.Uuid
+  coachId       String?       @map("coach_id") @db.Uuid
+  roomId        String?       @map("room_id") @db.Uuid
+  name          String
+  description   String?
+  startTime     DateTime      @map("start_time")
+  endTime       DateTime      @map("end_time")
+  capacity      Int
+  waitlistLimit Int           @default(10) @map("waitlist_limit")
+  isCancelled   Boolean       @default(false) @map("is_cancelled")
+  cancelReason  String?       @map("cancel_reason")
+  settings      Json          @default("{}")
+
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  branch        Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  template      ClassTemplate? @relation(fields: [templateId], references: [id])
+  coach         StaffProfile? @relation(fields: [coachId], references: [id])
+  room          Room?         @relation(fields: [roomId], references: [id])
+
+  bookings      Booking[]
+
+  @@index([branchId, startTime])
+  @@map("class_instances")
+}
+
+// =====================================================
+// CUSTOMERS & MEMBERS
+// =====================================================
+
+model Customer {
+  id            String        @id @default(uuid()) @db.Uuid
+  tenantId      String        @map("tenant_id") @db.Uuid
+  userId        String?       @map("user_id") @db.Uuid // Link to User if they have an account
+  email         String
+  phone         String?
+  firstName     String        @map("first_name")
+  lastName      String        @map("last_name")
+  dateOfBirth   DateTime?     @map("date_of_birth")
+  gender        String?
+  address       String?
+  emergencyContact String?    @map("emergency_contact")
+  emergencyPhone String?      @map("emergency_phone")
+  notes         String?
+  tags          String[]      @default([])
+  source        String?       // How they found us
+  leadStatus    LeadStatus    @default(NEW) @map("lead_status")
+  marketingConsent Boolean    @default(false) @map("marketing_consent")
+  consentDate   DateTime?     @map("consent_date")
+
+  // Stripe
+  stripeCustomerId String?    @unique @map("stripe_customer_id")
+
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  deletedAt     DateTime?     @map("deleted_at")
+
+  // Relations
+  memberships   Membership[]
+  bookings      Booking[]
+  payments      Payment[]
+  creditBalance CreditBalance?
+
+  @@unique([tenantId, email])
+  @@index([tenantId, lastName])
+  @@map("customers")
+}
+
+// =====================================================
+// MEMBERSHIPS & PACKAGES
+// =====================================================
+
+model MembershipPlan {
+  id            String         @id @default(uuid()) @db.Uuid
+  tenantId      String         @map("tenant_id") @db.Uuid
+  name          String
+  description   String?
+  type          MembershipType
+  price         Decimal        @db.Decimal(10, 2)
+  billingCycle  String?        @map("billing_cycle") // monthly, yearly, etc.
+  sessions      Int?           // For punch cards
+  credits       Int?           // For credit-based
+  validDays     Int?           @map("valid_days") // Duration in days
+  isActive      Boolean        @default(true) @map("is_active")
+  isPublic      Boolean        @default(true) @map("is_public")
+  features      Json           @default("[]")
+
+  // Stripe
+  stripePriceId String?        @map("stripe_price_id")
+
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  deletedAt     DateTime?      @map("deleted_at")
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  memberships   Membership[]
+
+  @@map("membership_plans")
+}
+
+model Membership {
+  id              String           @id @default(uuid()) @db.Uuid
+  customerId      String           @map("customer_id") @db.Uuid
+  planId          String           @map("plan_id") @db.Uuid
+  status          MembershipStatus @default(ACTIVE)
+  startDate       DateTime         @map("start_date")
+  endDate         DateTime?        @map("end_date")
+  sessionsRemaining Int?           @map("sessions_remaining")
+  creditsRemaining Int?            @map("credits_remaining")
+  autoRenew       Boolean          @default(true) @map("auto_renew")
+
+  // Stripe
+  stripeSubscriptionId String?     @map("stripe_subscription_id")
+
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  cancelledAt     DateTime?        @map("cancelled_at")
+
+  customer        Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  plan            MembershipPlan   @relation(fields: [planId], references: [id])
+
+  @@index([customerId, status])
+  @@map("memberships")
+}
+
+model CreditBalance {
+  id          String   @id @default(uuid()) @db.Uuid
+  customerId  String   @unique @map("customer_id") @db.Uuid
+  balance     Int      @default(0)
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("credit_balances")
+}
+
+// =====================================================
+// BOOKINGS
+// =====================================================
+
+model Booking {
+  id              String        @id @default(uuid()) @db.Uuid
+  customerId      String        @map("customer_id") @db.Uuid
+  classInstanceId String        @map("class_instance_id") @db.Uuid
+  status          BookingStatus @default(CONFIRMED)
+  waitlistPosition Int?         @map("waitlist_position")
+  bookedAt        DateTime      @default(now()) @map("booked_at")
+  checkedInAt     DateTime?     @map("checked_in_at")
+  cancelledAt     DateTime?     @map("cancelled_at")
+  cancelReason    String?       @map("cancel_reason")
+  noShowAt        DateTime?     @map("no_show_at")
+  notes           String?
+
+  // Booking source tracking
+  source          String        @default("web") // web, app, admin, api
+  bookedBy        String?       @map("booked_by") @db.Uuid // Staff who booked
+
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  customer        Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  classInstance   ClassInstance @relation(fields: [classInstanceId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, classInstanceId])
+  @@index([classInstanceId, status])
+  @@map("bookings")
+}
+
+// =====================================================
+// PAYMENTS
+// =====================================================
+
+model Payment {
+  id              String        @id @default(uuid()) @db.Uuid
+  customerId      String        @map("customer_id") @db.Uuid
+  amount          Decimal       @db.Decimal(10, 2)
+  currency        String        @default("ILS")
+  status          PaymentStatus @default(PENDING)
+  description     String?
+
+  // Stripe
+  stripePaymentIntentId String? @unique @map("stripe_payment_intent_id")
+  stripeInvoiceId       String? @map("stripe_invoice_id")
+
+  // Refund tracking
+  refundedAmount  Decimal?      @map("refunded_amount") @db.Decimal(10, 2)
+  refundReason    String?       @map("refund_reason")
+
+  // Metadata
+  metadata        Json          @default("{}")
+
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  customer        Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId, createdAt])
+  @@map("payments")
+}
+
+// =====================================================
+// AUTOMATIONS (Phase 3)
+// =====================================================
+
+model Automation {
+  id          String            @id @default(uuid()) @db.Uuid
+  tenantId    String            @map("tenant_id") @db.Uuid
+  name        String
+  description String?
+  trigger     AutomationTrigger
+  conditions  Json              @default("{}") // Trigger conditions
+  actions     Json              @default("[]") // Actions to perform
+  isActive    Boolean           @default(true) @map("is_active")
+  lastRunAt   DateTime?         @map("last_run_at")
+  runCount    Int               @default(0) @map("run_count")
+
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  tenant      Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("automations")
+}
+
+// =====================================================
+// AUDIT LOGS
+// =====================================================
+
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String?  @map("tenant_id") @db.Uuid
+  userId      String?  @map("user_id") @db.Uuid
+  action      String   // e.g., "user.login", "booking.create"
+  entityType  String?  @map("entity_type")
+  entityId    String?  @map("entity_id") @db.Uuid
+  oldValues   Json?    @map("old_values")
+  newValues   Json?    @map("new_values")
+  ipAddress   String?  @map("ip_address")
+  userAgent   String?  @map("user_agent")
+  metadata    Json     @default("{}")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user        User?    @relation("AuditLogUser", fields: [userId], references: [id])
+
+  @@index([tenantId, createdAt])
+  @@index([entityType, entityId])
+  @@index([userId, createdAt])
+  @@map("audit_logs")
+}
+
+// =====================================================
+// NOTIFICATION JOBS (for BullMQ)
+// =====================================================
+
+model NotificationJob {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  type        String   // email, sms, push
+  recipient   String
+  subject     String?
+  content     String   @db.Text
+  metadata    Json     @default("{}")
+  status      String   @default("pending") // pending, sent, failed
+  attempts    Int      @default(0)
+  sentAt      DateTime? @map("sent_at")
+  error       String?
+
+  scheduledFor DateTime @default(now()) @map("scheduled_for")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([status, scheduledFor])
+  @@map("notification_jobs")
+}
