@@ -42,13 +42,15 @@ function LoginForm() {
         redirect: false,
       });
 
-      console.log('SignIn result:', JSON.stringify(result));
+      console.log('SignIn result:', result);
 
-      // Check if login was successful
-      if (result?.ok && result?.url && !result.url.includes('/login')) {
+      // Check if login was successful - only check result.ok
+      if (result?.ok) {
+        console.log('Login successful, redirecting to:', callbackUrl);
         router.push(callbackUrl);
         router.refresh();
       } else {
+        console.log('Login failed, error:', result?.error);
         toast({
           variant: 'destructive',
           title: 'שגיאה בהתחברות',
