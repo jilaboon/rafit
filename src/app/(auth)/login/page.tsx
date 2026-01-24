@@ -42,17 +42,18 @@ function LoginForm() {
         redirect: false,
       });
 
-      console.log('SignIn result:', result);
+      console.log('SignIn result:', JSON.stringify(result));
 
-      if (!result?.ok) {
+      // Check if login was successful
+      if (result?.ok && result?.url && !result.url.includes('/login')) {
+        router.push(callbackUrl);
+        router.refresh();
+      } else {
         toast({
           variant: 'destructive',
           title: 'שגיאה בהתחברות',
           description: 'אימייל או סיסמה שגויים',
         });
-      } else {
-        router.push(callbackUrl);
-        router.refresh();
       }
     } catch (error) {
       console.error('SignIn error:', error);
