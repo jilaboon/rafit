@@ -81,6 +81,8 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  // Required for Vercel deployment - trust the host header
+  trustHost: true,
   // Note: Not using PrismaAdapter with JWT strategy + Credentials
   session: {
     strategy: 'jwt',
