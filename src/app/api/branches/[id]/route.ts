@@ -32,7 +32,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       },
       include: {
         rooms: {
-          where: { deletedAt: null },
           orderBy: { name: 'asc' },
         },
         _count: {
