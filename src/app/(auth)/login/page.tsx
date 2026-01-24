@@ -145,6 +145,7 @@ function LoginForm() {
                 id="password"
                 type={showPassword ? 'text' : 'password'}
                 placeholder="הזן סיסמה"
+                className="ltr-text"
                 autoComplete="current-password"
                 error={!!errors.password}
                 {...register('password')}

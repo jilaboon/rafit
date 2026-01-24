@@ -148,6 +148,7 @@ export default function RegisterPage() {
                 id="password"
                 type={showPassword ? 'text' : 'password'}
                 placeholder="צור סיסמה חזקה"
+                className="ltr-text"
                 autoComplete="new-password"
                 error={!!errors.password}
                 {...register('password')}
@@ -199,6 +200,7 @@ export default function RegisterPage() {
               id="confirmPassword"
               type="password"
               placeholder="הזן סיסמה שוב"
+              className="ltr-text"
               autoComplete="new-password"
               error={!!errors.confirmPassword}
               {...register('confirmPassword')}
