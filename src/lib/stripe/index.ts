@@ -5,7 +5,7 @@ if (!process.env.STRIPE_SECRET_KEY) {
 }
 
 export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2024-12-18.acacia',
+  apiVersion: '2025-02-24.acacia',
   typescript: true,
 });
 
@@ -176,7 +176,7 @@ export function constructWebhookEvent(
 // Get invoice PDF URL
 export async function getInvoicePdfUrl(invoiceId: string): Promise<string | null> {
   const invoice = await stripe.invoices.retrieve(invoiceId);
-  return invoice.invoice_pdf;
+  return invoice.invoice_pdf ?? null;
 }
 
 // Create price for membership plan

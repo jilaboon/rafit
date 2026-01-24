@@ -70,11 +70,11 @@ export async function createAuditLog(input: AuditLogInput): Promise<void> {
         action: input.action,
         entityType: input.entityType,
         entityId: input.entityId,
-        oldValues: input.oldValues || undefined,
-        newValues: input.newValues || undefined,
+        oldValues: input.oldValues ? JSON.parse(JSON.stringify(input.oldValues)) : undefined,
+        newValues: input.newValues ? JSON.parse(JSON.stringify(input.newValues)) : undefined,
         ipAddress,
         userAgent,
-        metadata: input.metadata || {},
+        metadata: input.metadata ? JSON.parse(JSON.stringify(input.metadata)) : undefined,
       },
     });
   } catch (error) {

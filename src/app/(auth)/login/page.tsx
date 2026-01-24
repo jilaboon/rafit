@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { loginSchema, type LoginInput } from '@/lib/validations/auth';
 import { Eye, EyeOff, Mail } from 'lucide-react';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -201,5 +201,31 @@ export default function LoginPage() {
         </p>
       </CardContent>
     </Card>
+  );
+}
+
+function LoginFormFallback() {
+  return (
+    <Card>
+      <CardHeader className="text-center">
+        <CardTitle className="text-2xl">התחברות</CardTitle>
+        <CardDescription>טוען...</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4 animate-pulse">
+          <div className="h-10 bg-muted rounded" />
+          <div className="h-10 bg-muted rounded" />
+          <div className="h-10 bg-muted rounded" />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginFormFallback />}>
+      <LoginForm />
+    </Suspense>
   );
 }
