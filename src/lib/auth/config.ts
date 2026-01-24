@@ -21,20 +21,41 @@ const providers: NextAuthConfig['providers'] = [
     },
     async authorize(credentials) {
       try {
+        console.log('Auth: Starting authorization');
         const parsed = loginSchema.safeParse(credentials);
-        if (!parsed.success) return null;
+        if (!parsed.success) {
+          console.log('Auth: Schema validation failed', parsed.error);
+          return null;
+        }
 
+        console.log('Auth: Looking up user:', parsed.data.email);
         const user = await prisma.user.findUnique({
           where: { email: parsed.data.email },
         });
 
-        if (!user || !user.passwordHash) return null;
+        if (!user) {
+          console.log('Auth: User not found');
+          return null;
+        }
 
+        if (!user.passwordHash) {
+          console.log('Auth: User has no password');
+          return null;
+        }
+
+        console.log('Auth: Comparing password');
         const isValid = await compare(parsed.data.password, user.passwordHash);
-        if (!isValid) return null;
+        if (!isValid) {
+          console.log('Auth: Password invalid');
+          return null;
+        }
 
-        if (user.status !== 'ACTIVE') return null;
+        if (user.status !== 'ACTIVE') {
+          console.log('Auth: User not active, status:', user.status);
+          return null;
+        }
 
+        console.log('Auth: Success, returning user');
         return {
           id: user.id,
           email: user.email,
