@@ -219,13 +219,6 @@ export async function GET(request: NextRequest) {
             lastName: true,
           },
         },
-        membership: {
-          include: {
-            plan: {
-              select: { name: true },
-            },
-          },
-        },
       },
       orderBy: { createdAt: 'desc' },
       take: 5,
@@ -235,7 +228,7 @@ export async function GET(request: NextRequest) {
       id: p.id,
       customer: `${p.customer.firstName} ${p.customer.lastName}`,
       amount: Number(p.amount),
-      type: p.membership?.plan?.name || p.description || 'תשלום',
+      type: p.description || 'תשלום',
       date: p.createdAt.toISOString(),
     }));
 
