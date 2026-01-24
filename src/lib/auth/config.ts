@@ -115,7 +115,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
   events: {
-    async signOut({ token }) {
+    async signOut(message) {
+      // Handle both session and JWT strategies
+      const token = 'token' in message ? message.token : null;
       if (token?.id) {
         await prisma.auditLog.create({
           data: {
