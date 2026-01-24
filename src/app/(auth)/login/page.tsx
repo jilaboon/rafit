@@ -1,115 +1,40 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useState, useTransition } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { signIn } from 'next-auth/react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { loginSchema, type LoginInput } from '@/lib/validations/auth';
 import { Eye, EyeOff, Mail } from 'lucide-react';
+import { loginAction } from './actions';
 
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isMagicLinkLoading, setIsMagicLinkLoading] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
 
   const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    getValues,
-  } = useForm<LoginInput>({
-    resolver: zodResolver(loginSchema),
-  });
+  const handleSubmit = (formData: FormData) => {
+    setError(null);
+    formData.append('callbackUrl', callbackUrl);
 
-  const onSubmit = async (data: LoginInput) => {
-    setIsLoading(true);
-    try {
-      const result = await signIn('credentials', {
-        email: data.email,
-        password: data.password,
-        redirect: false,
-      });
-
-      console.log('SignIn result:', result);
-
-      // Check if login was successful - only check result.ok
-      if (result?.ok) {
-        console.log('Login successful, redirecting to:', callbackUrl);
-        router.push(callbackUrl);
-        router.refresh();
-      } else {
-        console.log('Login failed, error:', result?.error);
+    startTransition(async () => {
+      const result = await loginAction(formData);
+      if (result?.error) {
+        setError(result.error);
         toast({
           variant: 'destructive',
           title: 'שגיאה בהתחברות',
-          description: 'אימייל או סיסמה שגויים',
+          description: result.error,
         });
       }
-    } catch (error) {
-      console.error('SignIn error:', error);
-      toast({
-        variant: 'destructive',
-        title: 'שגיאה',
-        description: 'אירעה שגיאה בהתחברות. נסה שוב.',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleMagicLink = async () => {
-    const email = getValues('email');
-    if (!email) {
-      toast({
-        variant: 'destructive',
-        title: 'שגיאה',
-        description: 'נא להזין כתובת אימייל',
-      });
-      return;
-    }
-
-    setIsMagicLinkLoading(true);
-    try {
-      const response = await fetch('/api/auth/magic-link', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-
-      if (response.ok) {
-        toast({
-          title: 'נשלח בהצלחה',
-          description: 'קישור התחברות נשלח לאימייל שלך',
-        });
-      } else {
-        const data = await response.json();
-        toast({
-          variant: 'destructive',
-          title: 'שגיאה',
-          description: data.error || 'אירעה שגיאה בשליחת הקישור',
-        });
-      }
-    } catch {
-      toast({
-        variant: 'destructive',
-        title: 'שגיאה',
-        description: 'אירעה שגיאה בשליחת הקישור',
-      });
-    } finally {
-      setIsMagicLinkLoading(false);
-    }
+    });
   };
 
   return (
@@ -119,21 +44,18 @@ function LoginForm() {
         <CardDescription>התחבר לחשבון <span className="brand-name">RAFIT</span> שלך</CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form action={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">אימייל</Label>
             <Input
               id="email"
+              name="email"
               type="email"
               placeholder="name@example.com"
               className="ltr-text"
               autoComplete="email"
-              error={!!errors.email}
-              {...register('email')}
+              required
             />
-            {errors.email && (
-              <p className="text-sm text-destructive">{errors.email.message}</p>
-            )}
           </div>
 
           <div className="space-y-2">
@@ -149,12 +71,13 @@ function LoginForm() {
             <div className="relative">
               <Input
                 id="password"
+                name="password"
                 type={showPassword ? 'text' : 'password'}
                 placeholder="הזן סיסמה"
                 className="ltr-text"
                 autoComplete="current-password"
-                error={!!errors.password}
-                {...register('password')}
+                required
+                minLength={8}
               />
               <Button
                 type="button"
@@ -170,13 +93,14 @@ function LoginForm() {
                 )}
               </Button>
             </div>
-            {errors.password && (
-              <p className="text-sm text-destructive">{errors.password.message}</p>
-            )}
           </div>
 
-          <Button type="submit" className="w-full" loading={isLoading}>
-            התחבר
+          {error && (
+            <p className="text-sm text-destructive text-center">{error}</p>
+          )}
+
+          <Button type="submit" className="w-full" disabled={isPending}>
+            {isPending ? 'מתחבר...' : 'התחבר'}
           </Button>
         </form>
 
@@ -193,8 +117,7 @@ function LoginForm() {
           type="button"
           variant="outline"
           className="w-full"
-          onClick={handleMagicLink}
-          loading={isMagicLinkLoading}
+          disabled={isPending}
         >
           <Mail className="ml-2 h-4 w-4" />
           שלח לי קישור התחברות
@@ -211,27 +134,22 @@ function LoginForm() {
   );
 }
 
-function LoginFormFallback() {
-  return (
-    <Card>
-      <CardHeader className="text-center">
-        <CardTitle className="text-2xl">התחברות</CardTitle>
-        <CardDescription>טוען...</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4 animate-pulse">
-          <div className="h-10 bg-muted rounded" />
-          <div className="h-10 bg-muted rounded" />
-          <div className="h-10 bg-muted rounded" />
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 export default function LoginPage() {
   return (
-    <Suspense fallback={<LoginFormFallback />}>
+    <Suspense fallback={
+      <Card>
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl">התחברות</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4 animate-pulse">
+            <div className="h-10 bg-muted rounded" />
+            <div className="h-10 bg-muted rounded" />
+            <div className="h-10 bg-muted rounded" />
+          </div>
+        </CardContent>
+      </Card>
+    }>
       <LoginForm />
     </Suspense>
   );
