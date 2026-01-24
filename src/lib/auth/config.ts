@@ -113,17 +113,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return session;
     },
     async signIn({ user, account }) {
-      // Log successful sign-in
-      if (user.id) {
-        await prisma.auditLog.create({
-          data: {
-            userId: user.id,
-            action: 'user.login',
-            metadata: {
-              provider: account?.provider || 'credentials',
+      // Log successful sign-in (don't block login if this fails)
+      try {
+        if (user.id) {
+          await prisma.auditLog.create({
+            data: {
+              userId: user.id,
+              action: 'user.login',
+              metadata: JSON.parse(JSON.stringify({
+                provider: account?.provider || 'credentials',
+              })),
             },
-          },
-        });
+          });
+        }
+      } catch (error) {
+        console.error('Failed to create login audit log:', error);
       }
       return true;
     },
