@@ -42,7 +42,9 @@ function LoginForm() {
         redirect: false,
       });
 
-      if (result?.error) {
+      console.log('SignIn result:', result);
+
+      if (!result?.ok) {
         toast({
           variant: 'destructive',
           title: 'שגיאה בהתחברות',
@@ -52,7 +54,8 @@ function LoginForm() {
         router.push(callbackUrl);
         router.refresh();
       }
-    } catch {
+    } catch (error) {
+      console.error('SignIn error:', error);
       toast({
         variant: 'destructive',
         title: 'שגיאה',
