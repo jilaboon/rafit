@@ -23,6 +23,7 @@ export type AuditAction =
   | 'class.cancel'
   | 'class.delete'
   | 'booking.create'
+  | 'booking.update'
   | 'booking.cancel'
   | 'booking.checkin'
   | 'booking.no_show'
@@ -176,6 +177,7 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   'class.cancel': 'ביטול שיעור',
   'class.delete': 'מחיקת שיעור',
   'booking.create': 'הרשמה לשיעור',
+  'booking.update': 'עדכון הזמנה',
   'booking.cancel': 'ביטול הרשמה',
   'booking.checkin': 'צ\'ק-אין',
   'booking.no_show': 'אי הגעה',
