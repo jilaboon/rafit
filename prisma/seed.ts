@@ -61,6 +61,23 @@ async function main() {
     },
   });
 
+  // Create Super Admin user
+  console.log('🛡️ Creating Super Admin user...');
+  const superAdminPasswordHash = await hash('SuperAdmin123!', 12);
+
+  await prisma.user.upsert({
+    where: { email: 'admin@rafit.com' },
+    update: { isSuperAdmin: true },
+    create: {
+      email: 'admin@rafit.com',
+      passwordHash: superAdminPasswordHash,
+      name: 'Platform Admin',
+      isSuperAdmin: true,
+      status: 'ACTIVE',
+      emailVerifiedAt: new Date(),
+    },
+  });
+
   // Create demo users
   console.log('👥 Creating demo users...');
   const passwordHash = await hash('Demo1234!', 12);
@@ -109,6 +126,28 @@ async function main() {
     },
   });
 
+  const coach2User = await prisma.user.create({
+    data: {
+      email: 'coach2@demo.com',
+      passwordHash,
+      name: 'יואב שמש',
+      phone: '050-5678901',
+      emailVerifiedAt: new Date(),
+      status: 'ACTIVE',
+    },
+  });
+
+  const accountantUser = await prisma.user.create({
+    data: {
+      email: 'accountant@demo.com',
+      passwordHash,
+      name: 'שרה גולד',
+      phone: '050-6789012',
+      emailVerifiedAt: new Date(),
+      status: 'ACTIVE',
+    },
+  });
+
   // Create tenant users
   console.log('🔗 Linking users to tenant...');
   const ownerTenantUser = await prisma.tenantUser.create({
@@ -143,6 +182,24 @@ async function main() {
       tenantId: tenant.id,
       userId: frontDeskUser.id,
       role: UserRole.FRONT_DESK,
+      isActive: true,
+    },
+  });
+
+  const coach2TenantUser = await prisma.tenantUser.create({
+    data: {
+      tenantId: tenant.id,
+      userId: coach2User.id,
+      role: UserRole.COACH,
+      isActive: true,
+    },
+  });
+
+  await prisma.tenantUser.create({
+    data: {
+      tenantId: tenant.id,
+      userId: accountantUser.id,
+      role: UserRole.ACCOUNTANT,
       isActive: true,
     },
   });
@@ -194,6 +251,20 @@ async function main() {
       certifications: ['RYT-500', 'פילאטיס מט'],
       hourlyRate: 150,
       color: '#8b5cf6',
+      isPublic: true,
+    },
+  });
+
+  const coach2Profile = await prisma.staffProfile.create({
+    data: {
+      tenantUserId: coach2TenantUser.id,
+      branchId: branch.id,
+      title: 'מאמן HIIT',
+      bio: 'מאמן כושר מוסמך עם התמחות באימוני HIIT ופונקציונלי',
+      specialties: ['HIIT', 'כושר פונקציונלי', 'TRX'],
+      certifications: ['מאמן כושר מוסמך', 'TRX Level 2'],
+      hourlyRate: 120,
+      color: '#ef4444',
       isPublic: true,
     },
   });
@@ -419,6 +490,78 @@ async function main() {
         source: 'אתר',
       },
     }),
+    prisma.customer.create({
+      data: {
+        tenantId: tenant.id,
+        email: 'customer5@demo.com',
+        firstName: 'מיכל',
+        lastName: 'רוזן',
+        phone: '050-1111111',
+        leadStatus: LeadStatus.CONVERTED,
+        marketingConsent: true,
+        tags: ['HIIT', 'VIP'],
+      },
+    }),
+    prisma.customer.create({
+      data: {
+        tenantId: tenant.id,
+        email: 'customer6@demo.com',
+        firstName: 'אבי',
+        lastName: 'פרידמן',
+        phone: '050-2222222',
+        leadStatus: LeadStatus.CONVERTED,
+        marketingConsent: true,
+        tags: ['יוגה'],
+      },
+    }),
+    prisma.customer.create({
+      data: {
+        tenantId: tenant.id,
+        email: 'customer7@demo.com',
+        firstName: 'שירה',
+        lastName: 'בן דוד',
+        phone: '050-3333333',
+        leadStatus: LeadStatus.CONVERTED,
+        marketingConsent: false,
+        tags: ['פילאטיס', 'יוגה'],
+      },
+    }),
+    prisma.customer.create({
+      data: {
+        tenantId: tenant.id,
+        email: 'customer8@demo.com',
+        firstName: 'תומר',
+        lastName: 'שפירא',
+        phone: '050-4444444',
+        leadStatus: LeadStatus.CONVERTED,
+        marketingConsent: true,
+        tags: ['HIIT'],
+      },
+    }),
+    prisma.customer.create({
+      data: {
+        tenantId: tenant.id,
+        email: 'customer9@demo.com',
+        firstName: 'נעמה',
+        lastName: 'וינברג',
+        phone: '050-5555555',
+        leadStatus: LeadStatus.QUALIFIED,
+        marketingConsent: true,
+        source: 'חבר מביא חבר',
+      },
+    }),
+    prisma.customer.create({
+      data: {
+        tenantId: tenant.id,
+        email: 'customer10@demo.com',
+        firstName: 'גיל',
+        lastName: 'מזרחי',
+        phone: '050-6666666',
+        leadStatus: LeadStatus.CONVERTED,
+        marketingConsent: true,
+        tags: ['אימון אישי'],
+      },
+    }),
   ]);
 
   // Create memberships
@@ -455,14 +598,20 @@ async function main() {
     },
   });
 
-  // Create a class instance for today
-  console.log('📆 Creating today\'s classes...');
-  const today = new Date();
-  today.setHours(7, 0, 0, 0);
-  const todayEnd = new Date(today);
-  todayEnd.setHours(8, 0, 0, 0);
+  // Create class instances for today and coming days
+  console.log('📆 Creating classes for the week...');
+  const now = new Date();
 
-  const todayClass = await prisma.classInstance.create({
+  // Helper to create date at specific hour
+  const createDateTime = (daysOffset: number, hour: number, minute: number = 0) => {
+    const date = new Date(now);
+    date.setDate(date.getDate() + daysOffset);
+    date.setHours(hour, minute, 0, 0);
+    return date;
+  };
+
+  // Today's classes
+  const yogaMorningClass = await prisma.classInstance.create({
     data: {
       branchId: branch.id,
       templateId: yogaMorning.id,
@@ -470,20 +619,92 @@ async function main() {
       roomId: yogaRoom.id,
       name: 'יוגה בוקר',
       description: 'שיעור יוגה מרגיע לכל הרמות',
-      startTime: today,
-      endTime: todayEnd,
+      startTime: createDateTime(0, 7, 0),
+      endTime: createDateTime(0, 8, 0),
       capacity: 20,
       waitlistLimit: 5,
     },
   });
 
-  // Create some bookings
+  const pilatesClass = await prisma.classInstance.create({
+    data: {
+      branchId: branch.id,
+      coachId: coachProfile.id,
+      roomId: fitnessRoom.id,
+      name: 'פילאטיס',
+      description: 'אימון פילאטיס לחיזוק הליבה',
+      startTime: createDateTime(0, 9, 0),
+      endTime: createDateTime(0, 9, 55),
+      capacity: 15,
+      waitlistLimit: 5,
+    },
+  });
+
+  const hiitClass = await prisma.classInstance.create({
+    data: {
+      branchId: branch.id,
+      coachId: coach2Profile.id,
+      roomId: fitnessRoom.id,
+      name: 'HIIT',
+      description: 'אימון אינטרוולים בעצימות גבוהה',
+      startTime: createDateTime(0, 10, 30),
+      endTime: createDateTime(0, 11, 15),
+      capacity: 15,
+      waitlistLimit: 5,
+    },
+  });
+
+  const yogaEveningClass = await prisma.classInstance.create({
+    data: {
+      branchId: branch.id,
+      coachId: coachProfile.id,
+      roomId: yogaRoom.id,
+      name: 'יוגה ערב',
+      description: 'שיעור יוגה מרגיע לסיום היום',
+      startTime: createDateTime(0, 18, 0),
+      endTime: createDateTime(0, 19, 0),
+      capacity: 20,
+      waitlistLimit: 5,
+    },
+  });
+
+  // Tomorrow's classes
+  const tomorrowYoga = await prisma.classInstance.create({
+    data: {
+      branchId: branch.id,
+      coachId: coachProfile.id,
+      roomId: yogaRoom.id,
+      name: 'יוגה בוקר',
+      startTime: createDateTime(1, 7, 0),
+      endTime: createDateTime(1, 8, 0),
+      capacity: 20,
+      waitlistLimit: 5,
+    },
+  });
+
+  const tomorrowHiit = await prisma.classInstance.create({
+    data: {
+      branchId: branch.id,
+      coachId: coach2Profile.id,
+      roomId: fitnessRoom.id,
+      name: 'HIIT מתקדמים',
+      startTime: createDateTime(1, 10, 0),
+      endTime: createDateTime(1, 10, 45),
+      capacity: 12,
+      waitlistLimit: 3,
+    },
+  });
+
+  // Create some bookings with various statuses
   console.log('📝 Creating bookings...');
+
+  // Bookings for yoga morning (some checked in)
   await prisma.booking.create({
     data: {
       customerId: customers[0].id,
-      classInstanceId: todayClass.id,
+      classInstanceId: yogaMorningClass.id,
       status: 'CONFIRMED',
+      checkedInAt: createDateTime(0, 6, 55),
       source: 'web',
     },
   });
@@ -491,31 +712,289 @@ async function main() {
   await prisma.booking.create({
     data: {
       customerId: customers[1].id,
-      classInstanceId: todayClass.id,
+      classInstanceId: yogaMorningClass.id,
+      status: 'CONFIRMED',
+      checkedInAt: createDateTime(0, 6, 58),
+      source: 'admin',
+    },
+  });
+
+  await prisma.booking.create({
+    data: {
+      customerId: customers[5].id,
+      classInstanceId: yogaMorningClass.id,
+      status: 'CONFIRMED',
+      source: 'web',
+    },
+  });
+
+  await prisma.booking.create({
+    data: {
+      customerId: customers[6].id,
+      classInstanceId: yogaMorningClass.id,
+      status: 'CONFIRMED',
+      source: 'web',
+    },
+  });
+
+  // Bookings for pilates
+  await prisma.booking.create({
+    data: {
+      customerId: customers[1].id,
+      classInstanceId: pilatesClass.id,
+      status: 'CONFIRMED',
+      source: 'web',
+    },
+  });
+
+  await prisma.booking.create({
+    data: {
+      customerId: customers[6].id,
+      classInstanceId: pilatesClass.id,
+      status: 'CONFIRMED',
+      source: 'app',
+    },
+  });
+
+  // Bookings for HIIT
+  await prisma.booking.create({
+    data: {
+      customerId: customers[4].id,
+      classInstanceId: hiitClass.id,
+      status: 'CONFIRMED',
+      source: 'web',
+    },
+  });
+
+  await prisma.booking.create({
+    data: {
+      customerId: customers[7].id,
+      classInstanceId: hiitClass.id,
+      status: 'CONFIRMED',
+      source: 'web',
+    },
+  });
+
+  // Bookings for evening yoga
+  await prisma.booking.create({
+    data: {
+      customerId: customers[0].id,
+      classInstanceId: yogaEveningClass.id,
+      status: 'CONFIRMED',
+      source: 'web',
+    },
+  });
+
+  await prisma.booking.create({
+    data: {
+      customerId: customers[2].id,
+      classInstanceId: yogaEveningClass.id,
       status: 'CONFIRMED',
       source: 'admin',
     },
   });
 
-  // Create audit log
-  console.log('📜 Creating initial audit log...');
-  await prisma.auditLog.create({
+  await prisma.booking.create({
     data: {
+      customerId: customers[5].id,
+      classInstanceId: yogaEveningClass.id,
+      status: 'CONFIRMED',
+      source: 'web',
+    },
+  });
+
+  // Tomorrow's bookings
+  await prisma.booking.create({
+    data: {
+      customerId: customers[0].id,
+      classInstanceId: tomorrowYoga.id,
+      status: 'CONFIRMED',
+      source: 'web',
+    },
+  });
+
+  await prisma.booking.create({
+    data: {
+      customerId: customers[4].id,
+      classInstanceId: tomorrowHiit.id,
+      status: 'CONFIRMED',
+      source: 'web',
+    },
+  });
+
+  // Create payments
+  console.log('💰 Creating payments...');
+  await prisma.payment.create({
+    data: {
+      customerId: customers[0].id,
+      amount: 350,
+      currency: 'ILS',
+      status: 'COMPLETED',
+      description: 'מנוי חודשי',
+      createdAt: createDateTime(-5, 10, 0),
+    },
+  });
+
+  await prisma.payment.create({
+    data: {
+      customerId: customers[1].id,
+      amount: 500,
+      currency: 'ILS',
+      status: 'COMPLETED',
+      description: 'כרטיסייה 10 כניסות',
+      createdAt: createDateTime(-3, 14, 30),
+    },
+  });
+
+  await prisma.payment.create({
+    data: {
+      customerId: customers[4].id,
+      amount: 350,
+      currency: 'ILS',
+      status: 'COMPLETED',
+      description: 'מנוי חודשי',
+      createdAt: createDateTime(-1, 11, 0),
+    },
+  });
+
+  await prisma.payment.create({
+    data: {
+      customerId: customers[9].id,
+      amount: 200,
+      currency: 'ILS',
+      status: 'COMPLETED',
+      description: 'אימון אישי',
+      createdAt: createDateTime(0, 8, 30),
+    },
+  });
+
+  await prisma.payment.create({
+    data: {
+      customerId: customers[7].id,
+      amount: 350,
+      currency: 'ILS',
+      status: 'PENDING',
+      description: 'מנוי חודשי - ממתין לאישור',
+    },
+  });
+
+  await prisma.payment.create({
+    data: {
+      customerId: customers[8].id,
+      amount: 500,
+      currency: 'ILS',
+      status: 'PENDING',
+      description: 'כרטיסייה 10 כניסות',
+    },
+  });
+
+  // Create audit logs for recent activity
+  console.log('📜 Creating audit logs...');
+
+  // Create activity logs
+  const auditLogs = [
+    {
       tenantId: tenant.id,
       userId: ownerUser.id,
       action: 'tenant.create',
       entityType: 'tenant',
       entityId: tenant.id,
       newValues: { name: tenant.name },
+      createdAt: createDateTime(-7, 9, 0),
     },
-  });
+    {
+      tenantId: tenant.id,
+      userId: frontDeskUser.id,
+      action: 'booking.create',
+      entityType: 'booking',
+      newValues: { customerName: 'רחל דוידוביץ', className: 'יוגה בוקר' },
+      createdAt: createDateTime(-1, 18, 30),
+    },
+    {
+      tenantId: tenant.id,
+      userId: frontDeskUser.id,
+      action: 'booking.create',
+      entityType: 'booking',
+      newValues: { customerName: 'אורי כהן', className: 'פילאטיס' },
+      createdAt: createDateTime(-1, 19, 15),
+    },
+    {
+      tenantId: tenant.id,
+      userId: adminUser.id,
+      action: 'customer.create',
+      entityType: 'customer',
+      newValues: { firstName: 'נעמה', lastName: 'וינברג' },
+      createdAt: createDateTime(0, 8, 0),
+    },
+    {
+      tenantId: tenant.id,
+      userId: frontDeskUser.id,
+      action: 'booking.checkin',
+      entityType: 'booking',
+      newValues: { customerName: 'רחל דוידוביץ' },
+      createdAt: createDateTime(0, 6, 55),
+    },
+    {
+      tenantId: tenant.id,
+      userId: frontDeskUser.id,
+      action: 'booking.checkin',
+      entityType: 'booking',
+      newValues: { customerName: 'אורי כהן' },
+      createdAt: createDateTime(0, 6, 58),
+    },
+    {
+      tenantId: tenant.id,
+      userId: adminUser.id,
+      action: 'membership.create',
+      entityType: 'membership',
+      newValues: { customerName: 'גיל מזרחי', planName: 'מנוי חודשי' },
+      createdAt: createDateTime(0, 9, 30),
+    },
+    {
+      tenantId: tenant.id,
+      userId: frontDeskUser.id,
+      action: 'payment.create',
+      entityType: 'payment',
+      newValues: { amount: 200, customerName: 'גיל מזרחי' },
+      createdAt: createDateTime(0, 8, 30),
+    },
+    {
+      tenantId: tenant.id,
+      userId: frontDeskUser.id,
+      action: 'booking.create',
+      entityType: 'booking',
+      newValues: { customerName: 'מיכל רוזן', className: 'HIIT' },
+      createdAt: createDateTime(0, 7, 45),
+    },
+    {
+      tenantId: tenant.id,
+      userId: coachUser.id,
+      action: 'user.login',
+      createdAt: createDateTime(0, 6, 30),
+    },
+  ];
+
+  for (const log of auditLogs) {
+    await prisma.auditLog.create({ data: log as any });
+  }
 
   console.log('✅ Seed completed successfully!');
-  console.log('\n📧 Demo accounts:');
-  console.log('   Owner:     owner@demo.com / Demo1234!');
-  console.log('   Admin:     admin@demo.com / Demo1234!');
-  console.log('   Coach:     coach@demo.com / Demo1234!');
-  console.log('   FrontDesk: frontdesk@demo.com / Demo1234!');
+  console.log('\n🛡️ Super Admin account:');
+  console.log('   Email:    admin@rafit.com');
+  console.log('   Password: SuperAdmin123!');
+  console.log('\n📧 Demo accounts (Password: Demo1234!):');
+  console.log('   Owner:      owner@demo.com');
+  console.log('   Admin:      admin@demo.com');
+  console.log('   Coach:      coach@demo.com');
+  console.log('   Coach 2:    coach2@demo.com');
+  console.log('   FrontDesk:  frontdesk@demo.com');
+  console.log('   Accountant: accountant@demo.com');
+  console.log('\n📊 Demo data created:');
+  console.log('   - 10 customers');
+  console.log('   - 6 classes today + 2 tomorrow');
+  console.log('   - Multiple bookings with check-ins');
+  console.log('   - 6 payments (4 completed, 2 pending)');
+  console.log('   - Activity logs for the feed');
 }
 
 main()

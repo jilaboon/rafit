@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -12,48 +12,120 @@ import {
   Download,
   ArrowUpRight,
   BarChart3,
+  AlertCircle,
 } from 'lucide-react';
 import { cn, formatCurrency } from '@/lib/utils';
+import {
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from 'recharts';
+import { format } from 'date-fns';
+import { he } from 'date-fns/locale';
 
-// Mock data
-const revenueData = {
-  total: 45250,
-  change: 12.5,
-  isPositive: true,
-};
-
-const membershipData = {
-  total: 156,
-  newThisMonth: 12,
-  churned: 3,
-  change: 8.2,
-  isPositive: true,
-};
-
-const attendanceData = {
-  totalClasses: 87,
-  totalAttendees: 892,
-  avgUtilization: 78,
-  change: 5.1,
-  isPositive: true,
-};
-
-const topClasses = [
-  { name: 'יוגה בוקר', attendees: 145, utilization: 92 },
-  { name: 'פילאטיס', attendees: 98, utilization: 85 },
-  { name: 'HIIT', attendees: 87, utilization: 78 },
-  { name: 'יוגה ערב', attendees: 76, utilization: 72 },
-];
-
-const recentPayments = [
-  { customer: 'רחל דוידוביץ', amount: 350, type: 'מנוי חודשי', date: '15.01.2024' },
-  { customer: 'אורי כהן', amount: 500, type: 'כרטיסייה', date: '14.01.2024' },
-  { customer: 'יעל אברהם', amount: 65, type: 'Drop-in', date: '14.01.2024' },
-  { customer: 'דני לוי', amount: 350, type: 'מנוי חודשי', date: '13.01.2024' },
-];
+interface ReportData {
+  revenue: {
+    total: number;
+    change: number;
+    isPositive: boolean;
+    transactionCount: number;
+  };
+  memberships: {
+    total: number;
+    newThisMonth: number;
+    churned: number;
+    change: number;
+    isPositive: boolean;
+  };
+  attendance: {
+    totalClasses: number;
+    totalAttendees: number;
+    avgUtilization: number;
+    change: number;
+    isPositive: boolean;
+  };
+  topClasses: {
+    name: string;
+    attendees: number;
+    utilization: number;
+    instances: number;
+  }[];
+  recentPayments: {
+    id: string;
+    customer: string;
+    amount: number;
+    type: string;
+    date: string;
+  }[];
+  charts: {
+    revenue: { date: string; amount: number }[];
+    attendance: { date: string; attendees: number; capacity: number }[];
+  };
+  period: string;
+}
 
 export default function ReportsPage() {
   const [period, setPeriod] = useState<'week' | 'month' | 'quarter'>('month');
+  const [data, setData] = useState<ReportData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchReports = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const response = await fetch(`/api/reports?period=${period}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch reports');
+      }
+      const result = await response.json();
+      setData(result);
+    } catch (err) {
+      setError('שגיאה בטעינת הדוחות');
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [period]);
+
+  useEffect(() => {
+    fetchReports();
+  }, [fetchReports]);
+
+  const formatDate = (dateStr: string) => {
+    try {
+      return format(new Date(dateStr), 'd בMMM', { locale: he });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-4">
+        <AlertCircle className="h-12 w-12 text-destructive" />
+        <p className="text-destructive">{error}</p>
+        <Button onClick={fetchReports}>נסה שוב</Button>
+      </div>
+    );
+  }
+
+  if (!data) return null;
 
   return (
     <div className="space-y-6">
@@ -103,22 +175,22 @@ export default function ReportsPage() {
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(revenueData.total)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(data.revenue.total)}</div>
             <div className="flex items-center gap-1 text-sm">
-              {revenueData.isPositive ? (
+              {data.revenue.isPositive ? (
                 <TrendingUp className="h-4 w-4 text-success" />
               ) : (
                 <TrendingDown className="h-4 w-4 text-destructive" />
               )}
               <span
                 className={cn(
-                  revenueData.isPositive ? 'text-success' : 'text-destructive'
+                  data.revenue.isPositive ? 'text-success' : 'text-destructive'
                 )}
               >
-                {revenueData.isPositive ? '+' : ''}
-                {revenueData.change}%
+                {data.revenue.isPositive ? '+' : ''}
+                {data.revenue.change}%
               </span>
-              <span className="text-muted-foreground">מהחודש הקודם</span>
+              <span className="text-muted-foreground">מהתקופה הקודמת</span>
             </div>
           </CardContent>
         </Card>
@@ -130,11 +202,11 @@ export default function ReportsPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{membershipData.total}</div>
+            <div className="text-2xl font-bold">{data.memberships.total}</div>
             <div className="flex items-center gap-2 text-sm">
-              <span className="text-success">+{membershipData.newThisMonth} חדשים</span>
+              <span className="text-success">+{data.memberships.newThisMonth} חדשים</span>
               <span className="text-muted-foreground">•</span>
-              <span className="text-destructive">-{membershipData.churned} עזבו</span>
+              <span className="text-destructive">-{data.memberships.churned} עזבו</span>
             </div>
           </CardContent>
         </Card>
@@ -146,10 +218,10 @@ export default function ReportsPage() {
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{attendanceData.avgUtilization}%</div>
+            <div className="text-2xl font-bold">{data.attendance.avgUtilization}%</div>
             <div className="flex items-center gap-1 text-sm">
               <span className="text-muted-foreground">
-                {attendanceData.totalAttendees} משתתפים ב-{attendanceData.totalClasses} שיעורים
+                {data.attendance.totalAttendees} משתתפים ב-{data.attendance.totalClasses} שיעורים
               </span>
             </div>
           </CardContent>
@@ -158,36 +230,126 @@ export default function ReportsPage() {
 
       {/* Charts Row */}
       <div className="grid gap-6 md:grid-cols-2">
-        {/* Revenue Chart Placeholder */}
+        {/* Revenue Chart */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">הכנסות לאורך זמן</CardTitle>
-            <CardDescription>התפלגות הכנסות חודשית</CardDescription>
+            <CardDescription>התפלגות הכנסות יומית</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex h-[200px] items-center justify-center rounded-lg border border-dashed">
-              <div className="text-center text-muted-foreground">
-                <BarChart3 className="mx-auto h-12 w-12" />
-                <p className="mt-2">גרף הכנסות</p>
-                <p className="text-sm">בקרוב...</p>
-              </div>
+            <div className="h-[250px]">
+              {data.charts.revenue.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart
+                    data={data.charts.revenue}
+                    margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                  >
+                    <defs>
+                      <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fontSize: 12 }}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 12 }}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(value) => `₪${value}`}
+                    />
+                    <Tooltip
+                      formatter={(value: number) => [formatCurrency(value), 'הכנסות']}
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--background))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                      }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="amount"
+                      stroke="hsl(var(--primary))"
+                      fillOpacity={1}
+                      fill="url(#colorRevenue)"
+                      strokeWidth={2}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex h-full items-center justify-center text-muted-foreground">
+                  <div className="text-center">
+                    <BarChart3 className="mx-auto h-12 w-12" />
+                    <p className="mt-2">אין נתונים להצגה</p>
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
 
-        {/* Attendance Chart Placeholder */}
+        {/* Attendance Chart */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">נוכחות לאורך זמן</CardTitle>
-            <CardDescription>מגמת נוכחות שבועית</CardDescription>
+            <CardDescription>משתתפים מול קיבולת</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex h-[200px] items-center justify-center rounded-lg border border-dashed">
-              <div className="text-center text-muted-foreground">
-                <BarChart3 className="mx-auto h-12 w-12" />
-                <p className="mt-2">גרף נוכחות</p>
-                <p className="text-sm">בקרוב...</p>
-              </div>
+            <div className="h-[250px]">
+              {data.charts.attendance.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={data.charts.attendance}
+                    margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fontSize: 12 }}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 12 }}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--background))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                      }}
+                    />
+                    <Legend />
+                    <Bar
+                      dataKey="capacity"
+                      name="קיבולת"
+                      fill="hsl(var(--muted-foreground))"
+                      opacity={0.3}
+                      radius={[4, 4, 0, 0]}
+                    />
+                    <Bar
+                      dataKey="attendees"
+                      name="משתתפים"
+                      fill="hsl(var(--primary))"
+                      radius={[4, 4, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex h-full items-center justify-center text-muted-foreground">
+                  <div className="text-center">
+                    <BarChart3 className="mx-auto h-12 w-12" />
+                    <p className="mt-2">אין נתונים להצגה</p>
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -203,31 +365,40 @@ export default function ReportsPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {topClasses.map((cls, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-sm font-medium">
-                      {index + 1}
+              {data.topClasses.length > 0 ? (
+                data.topClasses.map((cls, index) => (
+                  <div key={index} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-sm font-medium">
+                        {index + 1}
+                      </div>
+                      <div>
+                        <span className="font-medium">{cls.name}</span>
+                        <p className="text-xs text-muted-foreground">{cls.instances} שיעורים</p>
+                      </div>
                     </div>
-                    <span className="font-medium">{cls.name}</span>
+                    <div className="flex items-center gap-4 text-sm">
+                      <span className="text-muted-foreground">{cls.attendees} משתתפים</span>
+                      <span
+                        className={cn(
+                          'rounded-full px-2 py-0.5',
+                          cls.utilization >= 80
+                            ? 'bg-success/10 text-success'
+                            : cls.utilization >= 60
+                              ? 'bg-warning/10 text-warning'
+                              : 'bg-destructive/10 text-destructive'
+                        )}
+                      >
+                        {cls.utilization}%
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-4 text-sm">
-                    <span className="text-muted-foreground">{cls.attendees} משתתפים</span>
-                    <span
-                      className={cn(
-                        'rounded-full px-2 py-0.5',
-                        cls.utilization >= 80
-                          ? 'bg-success/10 text-success'
-                          : cls.utilization >= 60
-                            ? 'bg-warning/10 text-warning'
-                            : 'bg-destructive/10 text-destructive'
-                      )}
-                    >
-                      {cls.utilization}%
-                    </span>
-                  </div>
+                ))
+              ) : (
+                <div className="text-center text-muted-foreground py-8">
+                  אין שיעורים בתקופה זו
                 </div>
-              ))}
+              )}
             </div>
           </CardContent>
         </Card>
@@ -240,20 +411,26 @@ export default function ReportsPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {recentPayments.map((payment, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">{payment.customer}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {payment.type} • {payment.date}
-                    </p>
+              {data.recentPayments.length > 0 ? (
+                data.recentPayments.map((payment) => (
+                  <div key={payment.id} className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">{payment.customer}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {payment.type} • {formatDate(payment.date)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 font-medium text-success">
+                      +{formatCurrency(payment.amount)}
+                      <ArrowUpRight className="h-4 w-4" />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 font-medium text-success">
-                    +{formatCurrency(payment.amount)}
-                    <ArrowUpRight className="h-4 w-4" />
-                  </div>
+                ))
+              ) : (
+                <div className="text-center text-muted-foreground py-8">
+                  אין תשלומים להצגה
                 </div>
-              ))}
+              )}
             </div>
           </CardContent>
         </Card>

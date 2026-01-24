@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import {
   Building2,
   Bell,
@@ -15,10 +16,41 @@ import {
   Clock,
   Mail,
   Phone,
+  Check,
+  AlertCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type SettingsTab = 'business' | 'notifications' | 'payments' | 'security' | 'branding';
+
+interface TenantSettings {
+  id: string;
+  name: string;
+  slug: string;
+  email: string | null;
+  phone: string | null;
+  logoUrl: string | null;
+  timezone: string;
+  currency: string;
+  locale: string;
+  hasStripeConnection: boolean;
+  address: string | null;
+  notifications: {
+    emailReminder: boolean;
+    smsReminder: boolean;
+    reminderHoursBefore: number;
+    bookingConfirmation: boolean;
+    cancellationConfirmation: boolean;
+  };
+  payments: {
+    vatRate: number;
+    cancellationPolicyHours: number;
+  };
+  branding: {
+    primaryColor: string;
+    secondaryColor: string;
+  };
+}
 
 const tabs = [
   { id: 'business' as const, label: 'פרטי עסק', icon: Building2 },
@@ -30,14 +62,126 @@ const tabs = [
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('business');
+  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [settings, setSettings] = useState<TenantSettings | null>(null);
+
+  // Form state
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    notifications: {
+      emailReminder: true,
+      smsReminder: false,
+      reminderHoursBefore: 2,
+      bookingConfirmation: true,
+      cancellationConfirmation: true,
+    },
+    payments: {
+      vatRate: 17,
+      cancellationPolicyHours: 4,
+    },
+    branding: {
+      primaryColor: '#1e40af',
+      secondaryColor: '#f97316',
+    },
+  });
+
+  const fetchSettings = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const response = await fetch('/api/tenants/settings');
+      if (!response.ok) {
+        throw new Error('Failed to fetch settings');
+      }
+      const data = await response.json();
+      setSettings(data.settings);
+      setFormData({
+        name: data.settings.name || '',
+        email: data.settings.email || '',
+        phone: data.settings.phone || '',
+        address: data.settings.address || '',
+        notifications: data.settings.notifications,
+        payments: data.settings.payments,
+        branding: data.settings.branding,
+      });
+    } catch (err) {
+      setError('שגיאה בטעינת ההגדרות');
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSettings();
+  }, [fetchSettings]);
 
   const handleSave = async () => {
-    setIsSaving(true);
-    // Simulate save
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsSaving(false);
+    try {
+      setIsSaving(true);
+      setError(null);
+      setSuccess(null);
+
+      const response = await fetch('/api/tenants/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to save settings');
+      }
+
+      setSettings(data.settings);
+      setSuccess('ההגדרות נשמרו בהצלחה');
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'שגיאה בשמירת ההגדרות');
+    } finally {
+      setIsSaving(false);
+    }
   };
+
+  const updateFormField = (field: string, value: string | number | boolean) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const updateNotification = (field: string, value: boolean | number) => {
+    setFormData(prev => ({
+      ...prev,
+      notifications: { ...prev.notifications, [field]: value },
+    }));
+  };
+
+  const updatePayment = (field: string, value: number) => {
+    setFormData(prev => ({
+      ...prev,
+      payments: { ...prev.payments, [field]: value },
+    }));
+  };
+
+  const updateBranding = (field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      branding: { ...prev.branding, [field]: value },
+    }));
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -46,6 +190,20 @@ export default function SettingsPage() {
         <h1 className="text-2xl font-bold tracking-tight">הגדרות</h1>
         <p className="text-muted-foreground">נהל את הגדרות העסק שלך</p>
       </div>
+
+      {/* Status Messages */}
+      {error && (
+        <div className="flex items-center gap-2 rounded-lg bg-destructive/10 p-3 text-destructive">
+          <AlertCircle className="h-4 w-4" />
+          {error}
+        </div>
+      )}
+      {success && (
+        <div className="flex items-center gap-2 rounded-lg bg-success/10 p-3 text-success">
+          <Check className="h-4 w-4" />
+          {success}
+        </div>
+      )}
 
       <div className="flex flex-col gap-6 lg:flex-row">
         {/* Tabs */}
@@ -83,7 +241,11 @@ export default function SettingsPage() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="businessName">שם העסק</Label>
-                    <Input id="businessName" defaultValue="סטודיו פלא" />
+                    <Input
+                      id="businessName"
+                      value={formData.name}
+                      onChange={(e) => updateFormField('name', e.target.value)}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="slug">מזהה URL</Label>
@@ -93,7 +255,8 @@ export default function SettingsPage() {
                       </span>
                       <Input
                         id="slug"
-                        defaultValue="studio-pela"
+                        value={settings?.slug || ''}
+                        disabled
                         className="rounded-r-none ltr-text"
                       />
                     </div>
@@ -108,7 +271,8 @@ export default function SettingsPage() {
                       <Input
                         id="email"
                         type="email"
-                        defaultValue="info@studiopela.co.il"
+                        value={formData.email}
+                        onChange={(e) => updateFormField('email', e.target.value)}
                         className="pr-9 ltr-text"
                       />
                     </div>
@@ -120,7 +284,8 @@ export default function SettingsPage() {
                       <Input
                         id="phone"
                         type="tel"
-                        defaultValue="03-1234567"
+                        value={formData.phone}
+                        onChange={(e) => updateFormField('phone', e.target.value)}
                         className="pr-9 ltr-text"
                       />
                     </div>
@@ -134,7 +299,7 @@ export default function SettingsPage() {
                       <Clock className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                       <Input
                         id="timezone"
-                        defaultValue="Asia/Jerusalem"
+                        value={settings?.timezone || 'Asia/Jerusalem'}
                         disabled
                         className="pr-9 ltr-text"
                       />
@@ -144,14 +309,23 @@ export default function SettingsPage() {
                     <Label htmlFor="locale">שפה</Label>
                     <div className="relative">
                       <Globe className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                      <Input id="locale" defaultValue="עברית" disabled className="pr-9" />
+                      <Input
+                        id="locale"
+                        value={settings?.locale === 'he' ? 'עברית' : settings?.locale || 'עברית'}
+                        disabled
+                        className="pr-9"
+                      />
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="address">כתובת</Label>
-                  <Input id="address" defaultValue="רחוב דיזנגוף 99, תל אביב" />
+                  <Input
+                    id="address"
+                    value={formData.address}
+                    onChange={(e) => updateFormField('address', e.target.value)}
+                  />
                 </div>
               </CardContent>
             </Card>
@@ -170,19 +344,36 @@ export default function SettingsPage() {
                     <div>
                       <p className="font-medium">תזכורת באימייל</p>
                       <p className="text-sm text-muted-foreground">
-                        שלח תזכורת שעתיים לפני השיעור
+                        שלח תזכורת {formData.notifications.reminderHoursBefore} שעות לפני השיעור
                       </p>
                     </div>
-                    <input type="checkbox" defaultChecked className="h-5 w-5" />
+                    <Switch
+                      checked={formData.notifications.emailReminder}
+                      onCheckedChange={(checked) => updateNotification('emailReminder', checked)}
+                    />
                   </div>
                   <div className="flex items-center justify-between rounded-lg border p-4">
                     <div>
                       <p className="font-medium">תזכורת ב-SMS</p>
                       <p className="text-sm text-muted-foreground">
-                        שלח SMS שעתיים לפני השיעור
+                        שלח SMS {formData.notifications.reminderHoursBefore} שעות לפני השיעור
                       </p>
                     </div>
-                    <input type="checkbox" className="h-5 w-5" />
+                    <Switch
+                      checked={formData.notifications.smsReminder}
+                      onCheckedChange={(checked) => updateNotification('smsReminder', checked)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>שעות לפני השיעור</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={48}
+                      value={formData.notifications.reminderHoursBefore}
+                      onChange={(e) => updateNotification('reminderHoursBefore', parseInt(e.target.value) || 2)}
+                      className="w-24 ltr-text"
+                    />
                   </div>
                 </div>
 
@@ -195,7 +386,10 @@ export default function SettingsPage() {
                         שלח אישור מיידי לאחר הזמנה
                       </p>
                     </div>
-                    <input type="checkbox" defaultChecked className="h-5 w-5" />
+                    <Switch
+                      checked={formData.notifications.bookingConfirmation}
+                      onCheckedChange={(checked) => updateNotification('bookingConfirmation', checked)}
+                    />
                   </div>
                   <div className="flex items-center justify-between rounded-lg border p-4">
                     <div>
@@ -204,7 +398,10 @@ export default function SettingsPage() {
                         שלח אישור לאחר ביטול הזמנה
                       </p>
                     </div>
-                    <input type="checkbox" defaultChecked className="h-5 w-5" />
+                    <Switch
+                      checked={formData.notifications.cancellationConfirmation}
+                      onCheckedChange={(checked) => updateNotification('cancellationConfirmation', checked)}
+                    />
                   </div>
                 </div>
               </CardContent>
@@ -226,7 +423,9 @@ export default function SettingsPage() {
                       </div>
                       <div>
                         <p className="font-medium">Stripe</p>
-                        <p className="text-sm text-muted-foreground">מחובר</p>
+                        <p className="text-sm text-muted-foreground">
+                          {settings?.hasStripeConnection ? 'מחובר' : 'לא מחובר'}
+                        </p>
                       </div>
                     </div>
                     <Button variant="outline" size="sm">
@@ -238,24 +437,41 @@ export default function SettingsPage() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label>מטבע ברירת מחדל</Label>
-                    <Input defaultValue="₪ (ILS)" disabled />
+                    <Input
+                      value={settings?.currency === 'ILS' ? '₪ (ILS)' : settings?.currency || '₪ (ILS)'}
+                      disabled
+                    />
                   </div>
                   <div className="space-y-2">
-                    <Label>מע&quot;מ</Label>
-                    <Input defaultValue="17%" />
+                    <Label>מע&quot;מ (%)</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={formData.payments.vatRate}
+                      onChange={(e) => updatePayment('vatRate', parseFloat(e.target.value) || 0)}
+                      className="ltr-text"
+                    />
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <Label>מדיניות ביטול</Label>
                   <div className="flex gap-2">
-                    <Input type="number" defaultValue="4" className="w-20 ltr-text" />
+                    <Input
+                      type="number"
+                      min={0}
+                      max={168}
+                      value={formData.payments.cancellationPolicyHours}
+                      onChange={(e) => updatePayment('cancellationPolicyHours', parseInt(e.target.value) || 0)}
+                      className="w-20 ltr-text"
+                    />
                     <span className="flex items-center text-sm text-muted-foreground">
                       שעות לפני השיעור
                     </span>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    לקוחות יוכלו לבטל עד X שעות לפני השיעור ללא חיוב
+                    לקוחות יוכלו לבטל עד {formData.payments.cancellationPolicyHours} שעות לפני השיעור ללא חיוב
                   </p>
                 </div>
               </CardContent>
@@ -318,7 +534,17 @@ export default function SettingsPage() {
                   <Label>לוגו</Label>
                   <div className="flex items-center gap-4">
                     <div className="flex h-20 w-20 items-center justify-center rounded-lg border-2 border-dashed">
-                      <span className="text-2xl font-bold text-muted-foreground">R</span>
+                      {settings?.logoUrl ? (
+                        <img
+                          src={settings.logoUrl}
+                          alt="Logo"
+                          className="h-16 w-16 object-contain"
+                        />
+                      ) : (
+                        <span className="text-2xl font-bold text-muted-foreground">
+                          {settings?.name?.[0] || 'R'}
+                        </span>
+                      )}
                     </div>
                     <Button variant="outline">העלה לוגו</Button>
                   </div>
@@ -328,15 +554,33 @@ export default function SettingsPage() {
                   <div className="space-y-2">
                     <Label>צבע ראשי</Label>
                     <div className="flex gap-2">
-                      <Input type="color" defaultValue="#1e40af" className="h-10 w-14 p-1" />
-                      <Input defaultValue="#1e40af" className="ltr-text" />
+                      <Input
+                        type="color"
+                        value={formData.branding.primaryColor}
+                        onChange={(e) => updateBranding('primaryColor', e.target.value)}
+                        className="h-10 w-14 p-1"
+                      />
+                      <Input
+                        value={formData.branding.primaryColor}
+                        onChange={(e) => updateBranding('primaryColor', e.target.value)}
+                        className="ltr-text"
+                      />
                     </div>
                   </div>
                   <div className="space-y-2">
                     <Label>צבע משני</Label>
                     <div className="flex gap-2">
-                      <Input type="color" defaultValue="#f97316" className="h-10 w-14 p-1" />
-                      <Input defaultValue="#f97316" className="ltr-text" />
+                      <Input
+                        type="color"
+                        value={formData.branding.secondaryColor}
+                        onChange={(e) => updateBranding('secondaryColor', e.target.value)}
+                        className="h-10 w-14 p-1"
+                      />
+                      <Input
+                        value={formData.branding.secondaryColor}
+                        onChange={(e) => updateBranding('secondaryColor', e.target.value)}
+                        className="ltr-text"
+                      />
                     </div>
                   </div>
                 </div>

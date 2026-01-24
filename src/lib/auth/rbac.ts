@@ -284,3 +284,64 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   ACCOUNTANT: 'חשב',
   READ_ONLY: 'צפייה בלבד',
 };
+
+// =====================================================
+// SUPER ADMIN UTILITIES
+// =====================================================
+
+/**
+ * Check if a user session has super admin privileges.
+ * Super admins operate outside the normal tenant/role hierarchy.
+ */
+export function isSuperAdmin(session: { user?: { isSuperAdmin?: boolean } } | null): boolean {
+  return session?.user?.isSuperAdmin === true;
+}
+
+/**
+ * Check if a user session is currently impersonating another user.
+ */
+export function isImpersonating(session: { user?: { isImpersonating?: boolean } } | null): boolean {
+  return session?.user?.isImpersonating === true;
+}
+
+/**
+ * Check if a user can be impersonated.
+ * Super admins cannot be impersonated to prevent privilege escalation.
+ */
+export function canImpersonate(targetUser: { isSuperAdmin?: boolean }): boolean {
+  return targetUser.isSuperAdmin !== true;
+}
+
+/**
+ * Get the effective user ID (impersonated user if impersonating, otherwise actual user).
+ */
+export function getEffectiveUserId(session: {
+  user?: {
+    id: string;
+    isImpersonating?: boolean;
+    impersonatedUserId?: string;
+  };
+} | null): string | null {
+  if (!session?.user) return null;
+  if (session.user.isImpersonating && session.user.impersonatedUserId) {
+    return session.user.impersonatedUserId;
+  }
+  return session.user.id;
+}
+
+/**
+ * Get the original (non-impersonated) user ID.
+ */
+export function getOriginalUserId(session: {
+  user?: {
+    id: string;
+    isImpersonating?: boolean;
+    originalUserId?: string;
+  };
+} | null): string | null {
+  if (!session?.user) return null;
+  if (session.user.isImpersonating && session.user.originalUserId) {
+    return session.user.originalUserId;
+  }
+  return session.user.id;
+}

@@ -121,12 +121,61 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         // Handle session updates
-        if (trigger === 'update' && session?.tenantId) {
-          token.tenantId = session.tenantId;
+        if (trigger === 'update' && session) {
+          // Update tenant if provided
+          if (session.tenantId) {
+            token.tenantId = session.tenantId;
+          }
+          // Handle impersonation start
+          if (session.impersonate && session.impersonatedUserId) {
+            token.isImpersonating = true;
+            token.originalUserId = token.id as string;
+            token.impersonatedUserId = session.impersonatedUserId;
+            // Fetch impersonated user's tenant info
+            const impersonatedUser = await prisma.tenantUser.findFirst({
+              where: {
+                userId: session.impersonatedUserId,
+                isActive: true,
+              },
+              select: {
+                tenantId: true,
+                role: true,
+              },
+            });
+            if (impersonatedUser) {
+              token.tenantId = impersonatedUser.tenantId;
+              token.role = impersonatedUser.role;
+            }
+            console.log('JWT: Started impersonation of user:', session.impersonatedUserId);
+          }
+          // Handle impersonation stop
+          if (session.stopImpersonation) {
+            token.isImpersonating = false;
+            token.impersonatedUserId = undefined;
+            token.tenantId = undefined;
+            token.role = undefined;
+            // Restore original user ID (already in token.id for super admin)
+            if (token.originalUserId) {
+              token.id = token.originalUserId;
+              token.originalUserId = undefined;
+            }
+            console.log('JWT: Stopped impersonation');
+          }
         }
 
-        // Fetch tenant info if not present
-        if (token.id && !token.tenantId) {
+        // Fetch user info if not already fetched (initial login or refresh)
+        if (token.id && token.isSuperAdmin === undefined) {
+          console.log('JWT: Fetching user info for:', token.id);
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.id as string },
+            select: { isSuperAdmin: true },
+          });
+          token.isSuperAdmin = dbUser?.isSuperAdmin ?? false;
+          console.log('JWT: isSuperAdmin=', token.isSuperAdmin);
+        }
+
+        // Fetch tenant info if not present and not a super admin without tenant
+        if (token.id && !token.tenantId && !token.isImpersonating) {
           console.log('JWT: Fetching tenant info for user:', token.id);
           const tenantUser = await prisma.tenantUser.findFirst({
             where: {
@@ -160,7 +209,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = token.id as string;
         session.user.tenantId = token.tenantId as string | undefined;
         session.user.role = token.role as string | undefined;
-        console.log('Session: Set user data, id=', session.user.id);
+        // Super Admin fields
+        session.user.isSuperAdmin = token.isSuperAdmin ?? false;
+        session.user.isImpersonating = token.isImpersonating ?? false;
+        session.user.impersonatedUserId = token.impersonatedUserId as string | undefined;
+        session.user.originalUserId = token.originalUserId as string | undefined;
+        console.log('Session: Set user data, id=', session.user.id, 'isSuperAdmin=', session.user.isSuperAdmin);
       }
       return session;
     },

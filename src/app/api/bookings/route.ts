@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import prisma from '@/lib/db';
-import { auth } from '@/lib/auth/config';
 import { createAuditLog } from '@/lib/security/audit';
 import { checkRateLimit, createRateLimitResponse } from '@/lib/security/rate-limit';
+import { requirePermission, handleAuthError } from '@/lib/auth/permissions';
 
 const createBookingSchema = z.object({
   customerId: z.string().uuid(),
@@ -14,10 +14,7 @@ const createBookingSchema = z.object({
 // GET /api/bookings - List bookings
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.tenantId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const session = await requirePermission('booking:read');
 
     const { searchParams } = new URL(request.url);
     const classInstanceId = searchParams.get('classInstanceId');
@@ -94,6 +91,10 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ bookings });
   } catch (error) {
+    const { error: message, status } = handleAuthError(error);
+    if (status !== 500) {
+      return NextResponse.json({ error: message }, { status });
+    }
     console.error('Error fetching bookings:', error);
     return NextResponse.json(
       { error: 'אירעה שגיאה בטעינת ההזמנות' },
@@ -105,10 +106,7 @@ export async function GET(request: NextRequest) {
 // POST /api/bookings - Create booking
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.tenantId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const session = await requirePermission('booking:create');
 
     // Rate limiting
     const rateLimitResult = await checkRateLimit('apiWrite', session.user.id);

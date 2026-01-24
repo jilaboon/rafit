@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
@@ -30,8 +30,14 @@ import {
   Dumbbell,
   Bell,
   ChevronLeft,
+  UserCog,
+  ClipboardCheck,
 } from 'lucide-react';
 import { getInitials } from '@/lib/utils';
+import { UserRole } from '@prisma/client';
+import { Permission, hasAnyPermission } from '@/lib/auth/rbac';
+import { Badge } from '@/components/ui/badge';
+import { ROLE_LABELS } from '@/lib/auth/rbac';
 
 interface DashboardShellProps {
   children: React.ReactNode;
@@ -42,22 +48,94 @@ interface DashboardShellProps {
     image?: string;
     tenantId?: string;
     role?: string;
+    isImpersonating?: boolean;
   };
 }
 
-const navigation = [
+interface NavItem {
+  name: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  permissions?: Permission[];
+  roles?: UserRole[];
+}
+
+const navigation: NavItem[] = [
   { name: 'לוח בקרה', href: '/dashboard', icon: Home },
-  { name: 'לוח זמנים', href: '/dashboard/schedule', icon: Calendar },
-  { name: 'לקוחות', href: '/dashboard/customers', icon: Users },
-  { name: 'חברויות', href: '/dashboard/memberships', icon: CreditCard },
-  { name: 'שירותים', href: '/dashboard/services', icon: Dumbbell },
-  { name: 'דוחות', href: '/dashboard/reports', icon: BarChart3 },
-  { name: 'הגדרות', href: '/dashboard/settings', icon: Settings },
+  {
+    name: 'לוח זמנים',
+    href: '/dashboard/schedule',
+    icon: Calendar,
+    permissions: ['schedule:read'],
+  },
+  {
+    name: 'צ\'ק-אין',
+    href: '/dashboard/checkin',
+    icon: ClipboardCheck,
+    permissions: ['booking:checkin'],
+  },
+  {
+    name: 'לקוחות',
+    href: '/dashboard/customers',
+    icon: Users,
+    permissions: ['customer:read'],
+  },
+  {
+    name: 'חברויות',
+    href: '/dashboard/memberships',
+    icon: CreditCard,
+    permissions: ['membership:read'],
+  },
+  {
+    name: 'שירותים',
+    href: '/dashboard/services',
+    icon: Dumbbell,
+    permissions: ['service:read'],
+  },
+  {
+    name: 'סניפים',
+    href: '/dashboard/branches',
+    icon: Building2,
+    permissions: ['branch:read'],
+  },
+  {
+    name: 'דוחות',
+    href: '/dashboard/reports',
+    icon: BarChart3,
+    permissions: ['report:revenue', 'report:attendance', 'report:members'],
+  },
+  {
+    name: 'צוות',
+    href: '/dashboard/team',
+    icon: UserCog,
+    permissions: ['user:read'],
+  },
+  {
+    name: 'הגדרות',
+    href: '/dashboard/settings',
+    icon: Settings,
+    permissions: ['tenant:read'],
+  },
 ];
 
 export function DashboardShell({ children, user }: DashboardShellProps) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Filter navigation items based on user role
+  const filteredNavigation = useMemo(() => {
+    const userRole = user.role as UserRole | undefined;
+    if (!userRole) return navigation.filter((item) => !item.permissions);
+
+    return navigation.filter((item) => {
+      // No permission requirement - show to everyone
+      if (!item.permissions || item.permissions.length === 0) return true;
+      // Check if user has any of the required permissions
+      return hasAnyPermission(userRole, item.permissions);
+    });
+  }, [user.role]);
+
+  const roleLabel = user.role ? ROLE_LABELS[user.role as UserRole] : undefined;
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -97,7 +175,7 @@ export function DashboardShell({ children, user }: DashboardShellProps) {
 
           {/* Navigation */}
           <nav className="flex-1 space-y-1 p-4">
-            {navigation.map((item) => {
+            {filteredNavigation.map((item) => {
               const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
               return (
                 <Link
@@ -129,7 +207,14 @@ export function DashboardShell({ children, user }: DashboardShellProps) {
                   </Avatar>
                   <div className="flex flex-1 flex-col items-start text-sm">
                     <span className="font-medium">{user.name}</span>
-                    <span className="text-xs text-muted-foreground">{user.email}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">{user.email}</span>
+                      {roleLabel && (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                          {roleLabel}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                   <ChevronLeft className="h-4 w-4 text-muted-foreground" />
                 </Button>

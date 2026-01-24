@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,8 +10,18 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import {
   Search,
   Plus,
@@ -24,56 +34,29 @@ import {
   Users,
   UserPlus,
   TrendingUp,
+  Loader2,
+  Trash2,
 } from 'lucide-react';
 import { getInitials, cn } from '@/lib/utils';
 
-// Mock data - will be replaced with real API data
-const mockCustomers = [
-  {
-    id: '1',
-    firstName: 'רחל',
-    lastName: 'דוידוביץ',
-    email: 'rachel@example.com',
-    phone: '050-1234567',
-    tags: ['VIP', 'יוגה'],
-    membershipStatus: 'active',
-    lastVisit: new Date(2024, 0, 14),
-    totalVisits: 45,
-  },
-  {
-    id: '2',
-    firstName: 'אורי',
-    lastName: 'כהן',
-    email: 'ori@example.com',
-    phone: '050-2345678',
-    tags: ['פילאטיס'],
-    membershipStatus: 'active',
-    lastVisit: new Date(2024, 0, 13),
-    totalVisits: 28,
-  },
-  {
-    id: '3',
-    firstName: 'יעל',
-    lastName: 'אברהם',
-    email: 'yael@example.com',
-    phone: '050-3456789',
-    tags: [],
-    membershipStatus: 'trial',
-    lastVisit: new Date(2024, 0, 10),
-    totalVisits: 2,
-  },
-  {
-    id: '4',
-    firstName: 'דני',
-    lastName: 'לוי',
-    email: 'dani@example.com',
-    phone: '050-4567890',
-    tags: [],
-    membershipStatus: 'lead',
-    lastVisit: null,
-    totalVisits: 0,
-  },
-];
+interface Customer {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  tags: string[];
+  membershipStatus: string;
+  activeMembership?: {
+    planName: string;
+    planType: string;
+    sessionsRemaining?: number;
+    creditsRemaining?: number;
+  };
+  totalVisits: number;
+  lastVisit?: string;
+  createdAt: string;
+}
 
 const statusLabels: Record<string, { label: string; color: string }> = {
   active: { label: 'פעיל', color: 'bg-success/10 text-success' },
@@ -83,21 +66,116 @@ const statusLabels: Record<string, { label: string; color: string }> = {
 };
 
 export default function CustomersPage() {
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [total, setTotal] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [showNewDialog, setShowNewDialog] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [deleteCustomer, setDeleteCustomer] = useState<Customer | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  const filteredCustomers = mockCustomers.filter(
-    (c) =>
-      c.firstName.includes(searchQuery) ||
-      c.lastName.includes(searchQuery) ||
-      c.email.includes(searchQuery) ||
-      c.phone.includes(searchQuery)
-  );
+  // New customer form
+  const [newCustomer, setNewCustomer] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+  });
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const fetchCustomers = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (debouncedSearch) params.set('search', debouncedSearch);
+
+      const response = await fetch(`/api/customers?${params}`);
+      const data = await response.json();
+
+      if (data.customers) {
+        setCustomers(data.customers);
+        setTotal(data.total);
+      }
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [debouncedSearch]);
+
+  useEffect(() => {
+    fetchCustomers();
+  }, [fetchCustomers]);
+
+  const handleCreateCustomer = async () => {
+    if (!newCustomer.firstName || !newCustomer.lastName || !newCustomer.email) {
+      return;
+    }
+
+    setIsCreating(true);
+    try {
+      const response = await fetch('/api/customers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newCustomer),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setShowNewDialog(false);
+        setNewCustomer({ firstName: '', lastName: '', email: '', phone: '' });
+        fetchCustomers();
+      } else {
+        alert(data.error || 'שגיאה ביצירת לקוח');
+      }
+    } catch (error) {
+      console.error('Error creating customer:', error);
+      alert('שגיאה ביצירת לקוח');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const handleDeleteCustomer = async () => {
+    if (!deleteCustomer) return;
+
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/customers/${deleteCustomer.id}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setDeleteCustomer(null);
+        fetchCustomers();
+      } else {
+        alert(data.error || 'שגיאה במחיקת לקוח');
+      }
+    } catch (error) {
+      console.error('Error deleting customer:', error);
+      alert('שגיאה במחיקת לקוח');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const stats = {
-    total: mockCustomers.length,
-    active: mockCustomers.filter((c) => c.membershipStatus === 'active').length,
-    trial: mockCustomers.filter((c) => c.membershipStatus === 'trial').length,
-    leads: mockCustomers.filter((c) => c.membershipStatus === 'lead').length,
+    total,
+    active: customers.filter((c) => c.membershipStatus === 'active').length,
+    trial: customers.filter((c) => c.membershipStatus === 'trial').length,
+    leads: customers.filter((c) => c.membershipStatus === 'lead').length,
   };
 
   return (
@@ -113,12 +191,10 @@ export default function CustomersPage() {
             <Download className="ml-2 h-4 w-4" />
             ייצוא
           </Button>
-          <Link href="/dashboard/customers/new">
-            <Button>
-              <Plus className="ml-2 h-4 w-4" />
-              לקוח חדש
-            </Button>
-          </Link>
+          <Button onClick={() => setShowNewDialog(true)}>
+            <Plus className="ml-2 h-4 w-4" />
+            לקוח חדש
+          </Button>
         </div>
       </div>
 
@@ -203,110 +279,223 @@ export default function CustomersPage() {
           <CardTitle className="text-lg">רשימת לקוחות</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {filteredCustomers.length === 0 ? (
-              <div className="py-12 text-center">
-                <Users className="mx-auto h-12 w-12 text-muted-foreground" />
-                <p className="mt-4 text-lg font-medium">לא נמצאו לקוחות</p>
-                <p className="text-sm text-muted-foreground">
-                  נסה לחפש במונחים אחרים
-                </p>
-              </div>
-            ) : (
-              filteredCustomers.map((customer) => (
-                <div
-                  key={customer.id}
-                  className="flex items-center justify-between rounded-lg border p-4 transition-colors hover:bg-muted/50"
-                >
-                  <div className="flex items-center gap-4">
-                    <Avatar className="h-12 w-12">
-                      <AvatarFallback>
-                        {getInitials(`${customer.firstName} ${customer.lastName}`)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <Link
-                          href={`/dashboard/customers/${customer.id}`}
-                          className="font-medium hover:text-primary"
-                        >
-                          {customer.firstName} {customer.lastName}
-                        </Link>
-                        <span
-                          className={cn(
-                            'rounded-full px-2 py-0.5 text-xs',
-                            statusLabels[customer.membershipStatus]?.color
-                          )}
-                        >
-                          {statusLabels[customer.membershipStatus]?.label}
-                        </span>
-                      </div>
-                      <div className="mt-1 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Mail className="h-3 w-3" />
-                          {customer.email}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Phone className="h-3 w-3" />
-                          {customer.phone}
-                        </span>
-                      </div>
-                      {customer.tags.length > 0 && (
-                        <div className="mt-2 flex gap-1">
-                          {customer.tags.map((tag) => (
-                            <span
-                              key={tag}
-                              className="rounded bg-muted px-2 py-0.5 text-xs"
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    <div className="text-left">
-                      <p className="text-sm font-medium">{customer.totalVisits}</p>
-                      <p className="text-xs text-muted-foreground">ביקורים</p>
-                    </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem asChild>
-                          <Link href={`/dashboard/customers/${customer.id}`}>
-                            צפייה בפרופיל
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link href={`/dashboard/customers/${customer.id}/edit`}>
-                            עריכה
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link href={`/dashboard/bookings/new?customer=${customer.id}`}>
-                            הזמנה חדשה
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link href={`/dashboard/payments/new?customer=${customer.id}`}>
-                            קבלת תשלום
-                          </Link>
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {customers.length === 0 ? (
+                <div className="py-12 text-center">
+                  <Users className="mx-auto h-12 w-12 text-muted-foreground" />
+                  <p className="mt-4 text-lg font-medium">
+                    {debouncedSearch ? 'לא נמצאו לקוחות' : 'אין לקוחות עדיין'}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {debouncedSearch ? 'נסה לחפש במונחים אחרים' : 'צור את הלקוח הראשון שלך'}
+                  </p>
+                  {!debouncedSearch && (
+                    <Button className="mt-4" onClick={() => setShowNewDialog(true)}>
+                      <Plus className="ml-2 h-4 w-4" />
+                      לקוח חדש
+                    </Button>
+                  )}
                 </div>
-              ))
-            )}
-          </div>
+              ) : (
+                customers.map((customer) => (
+                  <div
+                    key={customer.id}
+                    className="flex items-center justify-between rounded-lg border p-4 transition-colors hover:bg-muted/50"
+                  >
+                    <div className="flex items-center gap-4">
+                      <Avatar className="h-12 w-12">
+                        <AvatarFallback>
+                          {getInitials(`${customer.firstName} ${customer.lastName}`)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <Link
+                            href={`/dashboard/customers/${customer.id}`}
+                            className="font-medium hover:text-primary"
+                          >
+                            {customer.firstName} {customer.lastName}
+                          </Link>
+                          <span
+                            className={cn(
+                              'rounded-full px-2 py-0.5 text-xs',
+                              statusLabels[customer.membershipStatus]?.color
+                            )}
+                          >
+                            {statusLabels[customer.membershipStatus]?.label}
+                          </span>
+                        </div>
+                        <div className="mt-1 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Mail className="h-3 w-3" />
+                            {customer.email}
+                          </span>
+                          {customer.phone && (
+                            <span className="flex items-center gap-1">
+                              <Phone className="h-3 w-3" />
+                              {customer.phone}
+                            </span>
+                          )}
+                        </div>
+                        {customer.tags.length > 0 && (
+                          <div className="mt-2 flex gap-1">
+                            {customer.tags.map((tag) => (
+                              <span
+                                key={tag}
+                                className="rounded bg-muted px-2 py-0.5 text-xs"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                      <div className="text-left">
+                        <p className="text-sm font-medium">{customer.totalVisits}</p>
+                        <p className="text-xs text-muted-foreground">ביקורים</p>
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem asChild>
+                            <Link href={`/dashboard/customers/${customer.id}`}>
+                              צפייה בפרופיל
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
+                            <Link href={`/dashboard/customers/${customer.id}/edit`}>
+                              עריכה
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem asChild>
+                            <Link href={`/dashboard/bookings/new?customer=${customer.id}`}>
+                              הזמנה חדשה
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
+                            <Link href={`/dashboard/payments/new?customer=${customer.id}`}>
+                              קבלת תשלום
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive"
+                            onClick={() => setDeleteCustomer(customer)}
+                          >
+                            <Trash2 className="ml-2 h-4 w-4" />
+                            מחיקה
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      {/* New Customer Dialog */}
+      <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>לקוח חדש</DialogTitle>
+            <DialogDescription>הוסף לקוח חדש למערכת</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="firstName">שם פרטי *</Label>
+                <Input
+                  id="firstName"
+                  value={newCustomer.firstName}
+                  onChange={(e) =>
+                    setNewCustomer((prev) => ({ ...prev, firstName: e.target.value }))
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lastName">שם משפחה *</Label>
+                <Input
+                  id="lastName"
+                  value={newCustomer.lastName}
+                  onChange={(e) =>
+                    setNewCustomer((prev) => ({ ...prev, lastName: e.target.value }))
+                  }
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">אימייל *</Label>
+              <Input
+                id="email"
+                type="email"
+                value={newCustomer.email}
+                onChange={(e) =>
+                  setNewCustomer((prev) => ({ ...prev, email: e.target.value }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">טלפון</Label>
+              <Input
+                id="phone"
+                value={newCustomer.phone}
+                onChange={(e) =>
+                  setNewCustomer((prev) => ({ ...prev, phone: e.target.value }))
+                }
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNewDialog(false)}>
+              ביטול
+            </Button>
+            <Button onClick={handleCreateCustomer} disabled={isCreating}>
+              {isCreating && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
+              צור לקוח
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deleteCustomer} onOpenChange={() => setDeleteCustomer(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>מחיקת לקוח</DialogTitle>
+            <DialogDescription>
+              האם אתה בטוח שברצונך למחוק את {deleteCustomer?.firstName}{' '}
+              {deleteCustomer?.lastName}?
+              <br />
+              פעולה זו לא ניתנת לביטול.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteCustomer(null)}>
+              ביטול
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteCustomer} disabled={isDeleting}>
+              {isDeleting && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
+              מחק
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

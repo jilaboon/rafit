@@ -10,6 +10,11 @@ declare module 'next-auth' {
       image?: string;
       tenantId?: string;
       role?: string;
+      // Super Admin fields
+      isSuperAdmin?: boolean;
+      isImpersonating?: boolean;
+      impersonatedUserId?: string;
+      originalUserId?: string;
     };
   }
 
@@ -17,6 +22,7 @@ declare module 'next-auth' {
     id: string;
     tenantId?: string;
     role?: string;
+    isSuperAdmin?: boolean;
   }
 }
 
@@ -25,6 +31,11 @@ declare module 'next-auth/jwt' {
     id?: string;
     tenantId?: string;
     role?: string;
+    // Super Admin fields
+    isSuperAdmin?: boolean;
+    isImpersonating?: boolean;
+    impersonatedUserId?: string;
+    originalUserId?: string;
   }
 }
 

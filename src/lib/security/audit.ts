@@ -41,7 +41,20 @@ export type AuditAction =
   | 'automation.delete'
   | 'settings.update'
   | 'data.export'
-  | 'data.delete';
+  | 'data.delete'
+  // User profile actions
+  | 'user.profile_update'
+  // Staff profile actions
+  | 'staff.profile_create'
+  | 'staff.profile_update'
+  | 'staff.profile_delete'
+  // Super Admin actions
+  | 'admin.impersonate_start'
+  | 'admin.impersonate_stop'
+  | 'admin.tenant_create'
+  | 'admin.tenant_update'
+  | 'admin.tenant_delete'
+  | 'admin.user_view';
 
 interface AuditLogInput {
   tenantId?: string;
@@ -196,4 +209,17 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   'settings.update': 'עדכון הגדרות',
   'data.export': 'ייצוא נתונים',
   'data.delete': 'מחיקת נתונים',
+  // User profile actions
+  'user.profile_update': 'עדכון פרופיל',
+  // Staff profile actions
+  'staff.profile_create': 'יצירת פרופיל מדריך',
+  'staff.profile_update': 'עדכון פרופיל מדריך',
+  'staff.profile_delete': 'מחיקת פרופיל מדריך',
+  // Super Admin actions
+  'admin.impersonate_start': 'התחלת התחזות',
+  'admin.impersonate_stop': 'סיום התחזות',
+  'admin.tenant_create': 'יצירת עסק (מנהל על)',
+  'admin.tenant_update': 'עדכון עסק (מנהל על)',
+  'admin.tenant_delete': 'מחיקת עסק (מנהל על)',
+  'admin.user_view': 'צפייה במשתמש (מנהל על)',
 };

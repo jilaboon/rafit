@@ -1,281 +1,392 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Search, Check, Clock, Users, UserCheck, AlertCircle } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Search, Check, Clock, Users, UserCheck, AlertCircle, Loader2 } from 'lucide-react';
 import { cn, getInitials, formatTime } from '@/lib/utils';
 
-// Mock data - current class
-const currentClass = {
-  id: '1',
-  name: 'יוגה בוקר',
-  startTime: new Date(2024, 0, 15, 7, 0),
-  endTime: new Date(2024, 0, 15, 8, 0),
-  coach: 'דנה שמש',
-  room: 'אולם יוגה',
-  capacity: 20,
-};
+interface ClassInfo {
+  id: string;
+  name: string;
+  startTime: string;
+  endTime: string;
+  capacity: number;
+  room?: string;
+  coach?: string;
+  bookings: {
+    total: number;
+    checkedIn: number;
+    pending: number;
+  };
+}
 
-const mockAttendees = [
-  {
-    id: '1',
-    bookingId: 'b1',
-    name: 'רחל דוידוביץ',
-    email: 'rachel@example.com',
-    membershipType: 'מנוי חודשי',
-    checkedIn: true,
-    checkedInAt: new Date(2024, 0, 15, 6, 55),
-  },
-  {
-    id: '2',
-    bookingId: 'b2',
-    name: 'אורי כהן',
-    email: 'ori@example.com',
-    membershipType: 'כרטיסייה (6/10)',
-    checkedIn: false,
-  },
-  {
-    id: '3',
-    bookingId: 'b3',
-    name: 'יעל אברהם',
-    email: 'yael@example.com',
-    membershipType: 'ניסיון',
-    checkedIn: false,
-  },
-  {
-    id: '4',
-    bookingId: 'b4',
-    name: 'דני לוי',
-    email: 'dani@example.com',
-    membershipType: 'מנוי חודשי',
-    checkedIn: true,
-    checkedInAt: new Date(2024, 0, 15, 6, 58),
-  },
-  {
-    id: '5',
-    bookingId: 'b5',
-    name: 'שרה מזרחי',
-    email: 'sarah@example.com',
-    membershipType: 'מנוי חודשי',
-    checkedIn: false,
-  },
-];
+interface Attendee {
+  id: string;
+  bookingId: string;
+  name: string;
+  email: string;
+  phone?: string;
+  membershipType: string;
+  checkedIn: boolean;
+  checkedInAt?: string;
+}
 
 export default function CheckinPage() {
+  const [classes, setClasses] = useState<ClassInfo[]>([]);
+  const [selectedClassId, setSelectedClassId] = useState<string>('');
+  const [currentClass, setCurrentClass] = useState<{
+    class: ClassInfo;
+    attendees: Attendee[];
+    stats: { total: number; checkedIn: number; pending: number };
+  } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [attendees, setAttendees] = useState(mockAttendees);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingAttendees, setIsLoadingAttendees] = useState(false);
+  const [checkingIn, setCheckingIn] = useState<string | null>(null);
 
-  const filteredAttendees = attendees.filter(
-    (a) =>
-      a.name.includes(searchQuery) ||
-      a.email.includes(searchQuery)
-  );
+  // Fetch today's classes
+  useEffect(() => {
+    async function fetchClasses() {
+      try {
+        const response = await fetch('/api/classes/today');
+        const data = await response.json();
+        if (data.classes) {
+          setClasses(data.classes);
+          // Auto-select first class with pending check-ins or closest to current time
+          if (data.classes.length > 0) {
+            const now = new Date();
+            const classWithPending = data.classes.find(
+              (c: ClassInfo) => c.bookings.pending > 0 && new Date(c.startTime) <= now
+            );
+            setSelectedClassId(classWithPending?.id || data.classes[0].id);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching classes:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchClasses();
+  }, []);
 
-  const checkedInCount = attendees.filter((a) => a.checkedIn).length;
-  const pendingCount = attendees.filter((a) => !a.checkedIn).length;
+  // Fetch attendees when class is selected
+  useEffect(() => {
+    async function fetchAttendees() {
+      if (!selectedClassId) return;
+
+      setIsLoadingAttendees(true);
+      try {
+        const response = await fetch(`/api/classes/${selectedClassId}/attendees`);
+        const data = await response.json();
+        if (data.class && data.attendees) {
+          setCurrentClass({
+            class: data.class,
+            attendees: data.attendees,
+            stats: data.stats,
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching attendees:', error);
+      } finally {
+        setIsLoadingAttendees(false);
+      }
+    }
+    fetchAttendees();
+  }, [selectedClassId]);
 
   const handleCheckin = async (bookingId: string) => {
-    // In real app, this would call the API
-    setAttendees((prev) =>
-      prev.map((a) =>
-        a.bookingId === bookingId
-          ? { ...a, checkedIn: true, checkedInAt: new Date() }
-          : a
-      )
-    );
+    setCheckingIn(bookingId);
+    try {
+      const response = await fetch(`/api/bookings/${bookingId}/checkin`, {
+        method: 'POST',
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        // Update local state
+        setCurrentClass((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            attendees: prev.attendees.map((a) =>
+              a.bookingId === bookingId
+                ? { ...a, checkedIn: true, checkedInAt: new Date().toISOString() }
+                : a
+            ),
+            stats: {
+              ...prev.stats,
+              checkedIn: prev.stats.checkedIn + 1,
+              pending: prev.stats.pending - 1,
+            },
+          };
+        });
+      } else {
+        alert(data.error || 'שגיאה בצ\'ק-אין');
+      }
+    } catch (error) {
+      console.error('Error checking in:', error);
+      alert('שגיאה בצ\'ק-אין');
+    } finally {
+      setCheckingIn(null);
+    }
   };
 
-  const handleUndoCheckin = async (bookingId: string) => {
-    setAttendees((prev) =>
-      prev.map((a) =>
-        a.bookingId === bookingId
-          ? { ...a, checkedIn: false, checkedInAt: undefined }
-          : a
-      )
+  const filteredAttendees = currentClass?.attendees.filter(
+    (a) =>
+      a.name.includes(searchQuery) ||
+      a.email.includes(searchQuery) ||
+      (a.phone && a.phone.includes(searchQuery))
+  ) || [];
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
     );
-  };
+  }
 
-  return (
-    <div className="space-y-6">
-      {/* Current Class Header */}
-      <Card className="bg-primary text-primary-foreground">
-        <CardContent className="p-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h1 className="text-2xl font-bold">{currentClass.name}</h1>
-              <div className="mt-2 flex flex-wrap items-center gap-4 text-primary-foreground/80">
-                <span className="flex items-center gap-1">
-                  <Clock className="h-4 w-4" />
-                  {formatTime(currentClass.startTime)} - {formatTime(currentClass.endTime)}
-                </span>
-                <span>מדריך: {currentClass.coach}</span>
-                <span>אולם: {currentClass.room}</span>
-              </div>
-            </div>
-            <div className="flex gap-4">
-              <div className="text-center">
-                <p className="text-3xl font-bold">{checkedInCount}</p>
-                <p className="text-sm text-primary-foreground/80">נכחו</p>
-              </div>
-              <div className="text-center">
-                <p className="text-3xl font-bold">{pendingCount}</p>
-                <p className="text-sm text-primary-foreground/80">ממתינים</p>
-              </div>
-              <div className="text-center">
-                <p className="text-3xl font-bold">{currentClass.capacity}</p>
-                <p className="text-sm text-primary-foreground/80">קיבולת</p>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-3">
+  if (classes.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">צ&apos;ק-אין</h1>
+          <p className="text-muted-foreground">סימון נוכחות למשתתפים</p>
+        </div>
         <Card>
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="rounded-lg bg-success/10 p-2">
-              <UserCheck className="h-5 w-5 text-success" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{checkedInCount}</p>
-              <p className="text-sm text-muted-foreground">עשו צ&apos;ק-אין</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="rounded-lg bg-warning/10 p-2">
-              <Clock className="h-5 w-5 text-warning" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{pendingCount}</p>
-              <p className="text-sm text-muted-foreground">ממתינים</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="rounded-lg bg-primary/10 p-2">
-              <Users className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">
-                {Math.round((checkedInCount / currentClass.capacity) * 100)}%
-              </p>
-              <p className="text-sm text-muted-foreground">תפוסה</p>
-            </div>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <AlertCircle className="h-12 w-12 text-muted-foreground" />
+            <p className="mt-4 text-lg font-medium">אין שיעורים היום</p>
+            <p className="text-sm text-muted-foreground">
+              לא נמצאו שיעורים מתוכננים להיום
+            </p>
           </CardContent>
         </Card>
       </div>
+    );
+  }
 
-      {/* Search */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="relative">
-            <Search className="absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="חפש לפי שם או אימייל..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pr-10 text-lg"
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Attendees List */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">רשימת משתתפים</CardTitle>
-          <CardDescription>לחץ על שם כדי לעשות צ&apos;ק-אין</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            {filteredAttendees.length === 0 ? (
-              <div className="py-12 text-center">
-                <AlertCircle className="mx-auto h-12 w-12 text-muted-foreground" />
-                <p className="mt-4 text-lg font-medium">לא נמצאו משתתפים</p>
-              </div>
-            ) : (
-              filteredAttendees.map((attendee) => (
-                <div
-                  key={attendee.id}
-                  className={cn(
-                    'flex items-center justify-between rounded-lg border p-4 transition-colors',
-                    attendee.checkedIn
-                      ? 'border-success/50 bg-success/5'
-                      : 'hover:bg-muted/50'
+  return (
+    <div className="space-y-6">
+      {/* Header with class selector */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">צ&apos;ק-אין</h1>
+          <p className="text-muted-foreground">סימון נוכחות למשתתפים</p>
+        </div>
+        <Select value={selectedClassId} onValueChange={setSelectedClassId}>
+          <SelectTrigger className="w-full md:w-[300px]">
+            <SelectValue placeholder="בחר שיעור" />
+          </SelectTrigger>
+          <SelectContent>
+            {classes.map((cls) => (
+              <SelectItem key={cls.id} value={cls.id}>
+                <span className="flex items-center gap-2">
+                  {cls.name} - {formatTime(new Date(cls.startTime))}
+                  {cls.bookings.pending > 0 && (
+                    <span className="rounded bg-warning/10 px-1.5 py-0.5 text-xs text-warning">
+                      {cls.bookings.pending}
+                    </span>
                   )}
-                >
-                  <div className="flex items-center gap-4">
-                    <Avatar className="h-12 w-12">
-                      <AvatarFallback
-                        className={cn(
-                          attendee.checkedIn ? 'bg-success text-success-foreground' : ''
-                        )}
-                      >
-                        {attendee.checkedIn ? (
-                          <Check className="h-5 w-5" />
-                        ) : (
-                          getInitials(attendee.name)
-                        )}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">{attendee.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {attendee.membershipType}
-                      </p>
-                      {attendee.checkedIn && attendee.checkedInAt && (
-                        <p className="text-xs text-success">
-                          נכנס ב-{formatTime(attendee.checkedInAt)}
-                        </p>
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {isLoadingAttendees ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : currentClass ? (
+        <>
+          {/* Current Class Header */}
+          <Card className="bg-primary text-primary-foreground">
+            <CardContent className="p-6">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold">{currentClass.class.name}</h2>
+                  <div className="mt-2 flex flex-wrap items-center gap-4 text-primary-foreground/80">
+                    <span className="flex items-center gap-1">
+                      <Clock className="h-4 w-4" />
+                      {formatTime(new Date(currentClass.class.startTime))} -{' '}
+                      {formatTime(new Date(currentClass.class.endTime))}
+                    </span>
+                    {currentClass.class.coach && (
+                      <span>מדריך: {currentClass.class.coach}</span>
+                    )}
+                    {currentClass.class.room && (
+                      <span>אולם: {currentClass.class.room}</span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex gap-4">
+                  <div className="text-center">
+                    <p className="text-3xl font-bold">{currentClass.stats.checkedIn}</p>
+                    <p className="text-sm text-primary-foreground/80">נכחו</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-3xl font-bold">{currentClass.stats.pending}</p>
+                    <p className="text-sm text-primary-foreground/80">ממתינים</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-3xl font-bold">{currentClass.class.capacity}</p>
+                    <p className="text-sm text-primary-foreground/80">קיבולת</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Stats */}
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card>
+              <CardContent className="flex items-center gap-4 p-4">
+                <div className="rounded-lg bg-success/10 p-2">
+                  <UserCheck className="h-5 w-5 text-success" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{currentClass.stats.checkedIn}</p>
+                  <p className="text-sm text-muted-foreground">עשו צ&apos;ק-אין</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="flex items-center gap-4 p-4">
+                <div className="rounded-lg bg-warning/10 p-2">
+                  <Clock className="h-5 w-5 text-warning" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{currentClass.stats.pending}</p>
+                  <p className="text-sm text-muted-foreground">ממתינים</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="flex items-center gap-4 p-4">
+                <div className="rounded-lg bg-primary/10 p-2">
+                  <Users className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">
+                    {Math.round((currentClass.stats.checkedIn / currentClass.class.capacity) * 100)}%
+                  </p>
+                  <p className="text-sm text-muted-foreground">תפוסה</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Search */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="relative">
+                <Search className="absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="חפש לפי שם, אימייל או טלפון..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pr-10 text-lg"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Attendees List */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">רשימת משתתפים</CardTitle>
+              <CardDescription>לחץ על צ&apos;ק-אין לסימון נוכחות</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {filteredAttendees.length === 0 ? (
+                  <div className="py-12 text-center">
+                    <AlertCircle className="mx-auto h-12 w-12 text-muted-foreground" />
+                    <p className="mt-4 text-lg font-medium">
+                      {currentClass.attendees.length === 0
+                        ? 'אין נרשמים לשיעור זה'
+                        : 'לא נמצאו משתתפים'}
+                    </p>
+                  </div>
+                ) : (
+                  filteredAttendees.map((attendee) => (
+                    <div
+                      key={attendee.id}
+                      className={cn(
+                        'flex items-center justify-between rounded-lg border p-4 transition-colors',
+                        attendee.checkedIn
+                          ? 'border-success/50 bg-success/5'
+                          : 'hover:bg-muted/50'
+                      )}
+                    >
+                      <div className="flex items-center gap-4">
+                        <Avatar className="h-12 w-12">
+                          <AvatarFallback
+                            className={cn(
+                              attendee.checkedIn ? 'bg-success text-success-foreground' : ''
+                            )}
+                          >
+                            {attendee.checkedIn ? (
+                              <Check className="h-5 w-5" />
+                            ) : (
+                              getInitials(attendee.name)
+                            )}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium">{attendee.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {attendee.membershipType}
+                          </p>
+                          {attendee.checkedIn && attendee.checkedInAt && (
+                            <p className="text-xs text-success">
+                              נכנס ב-{formatTime(new Date(attendee.checkedInAt))}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {attendee.checkedIn ? (
+                        <span className="flex items-center gap-2 text-sm text-success">
+                          <Check className="h-4 w-4" />
+                          נכח
+                        </span>
+                      ) : (
+                        <Button
+                          variant="default"
+                          size="lg"
+                          onClick={() => handleCheckin(attendee.bookingId)}
+                          disabled={checkingIn === attendee.bookingId}
+                        >
+                          {checkingIn === attendee.bookingId ? (
+                            <Loader2 className="ml-2 h-5 w-5 animate-spin" />
+                          ) : (
+                            <Check className="ml-2 h-5 w-5" />
+                          )}
+                          צ&apos;ק-אין
+                        </Button>
                       )}
                     </div>
-                  </div>
-
-                  {attendee.checkedIn ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleUndoCheckin(attendee.bookingId)}
-                    >
-                      בטל צ&apos;ק-אין
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="default"
-                      size="lg"
-                      onClick={() => handleCheckin(attendee.bookingId)}
-                    >
-                      <Check className="ml-2 h-5 w-5" />
-                      צ&apos;ק-אין
-                    </Button>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Quick Actions */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline">
-              <Users className="ml-2 h-4 w-4" />
-              הוסף Walk-in
-            </Button>
-            <Button variant="outline">סמן הכל כנוכחים</Button>
-            <Button variant="outline">סיים שיעור</Button>
-          </div>
-        </CardContent>
-      </Card>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      ) : null}
     </div>
   );
 }
