@@ -56,7 +56,7 @@ const defaultSettings = {
 // GET /api/tenants/settings - Get tenant settings
 export async function GET() {
   try {
-    const session = await requirePermission('settings:read');
+    const session = await requirePermission('tenant:read');
 
     const tenant = await prisma.tenant.findUnique({
       where: { id: session.user.tenantId },
@@ -122,7 +122,7 @@ export async function GET() {
 // PATCH /api/tenants/settings - Update tenant settings
 export async function PATCH(request: NextRequest) {
   try {
-    const session = await requirePermission('settings:update');
+    const session = await requirePermission('tenant:update');
 
     const body = await request.json();
     const parsed = settingsSchema.safeParse(body);
