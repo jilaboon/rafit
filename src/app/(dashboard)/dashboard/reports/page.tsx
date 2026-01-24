@@ -264,7 +264,7 @@ export default function ReportsPage() {
                       tickFormatter={(value) => `₪${value}`}
                     />
                     <Tooltip
-                      formatter={(value: number) => [formatCurrency(value), 'הכנסות']}
+                      formatter={(value) => [formatCurrency(Number(value) || 0), 'הכנסות']}
                       contentStyle={{
                         backgroundColor: 'hsl(var(--background))',
                         border: '1px solid hsl(var(--border))',
