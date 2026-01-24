@@ -1,5 +1,4 @@
 import NextAuth, { type NextAuthConfig } from 'next-auth';
-import { PrismaAdapter } from '@auth/prisma-adapter';
 import Credentials from 'next-auth/providers/credentials';
 import Google from 'next-auth/providers/google';
 import { compare, hash } from 'bcryptjs';
@@ -82,7 +81,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: PrismaAdapter(prisma),
+  // Note: Not using PrismaAdapter with JWT strategy + Credentials
   session: {
     strategy: 'jwt',
     maxAge: 24 * 60 * 60, // 24 hours
