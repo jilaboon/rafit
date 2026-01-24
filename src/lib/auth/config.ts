@@ -28,8 +28,18 @@ const providers: NextAuthConfig['providers'] = [
         }
 
         console.log('Auth: Looking up user:', parsed.data.email);
+        // Only select fields that are guaranteed to exist in DB
+        // (isSuperAdmin might not exist if migration hasn't run)
         const user = await prisma.user.findUnique({
           where: { email: parsed.data.email },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            avatarUrl: true,
+            passwordHash: true,
+            status: true,
+          },
         });
 
         if (!user) {
