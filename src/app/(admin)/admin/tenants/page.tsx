@@ -74,7 +74,7 @@ export default function TenantsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">עסקים</h1>
-          <p className="text-slate-400 mt-1">
+          <p className="text-muted-foreground mt-1">
             ניהול כל העסקים בפלטפורמה
           </p>
         </div>
@@ -84,12 +84,12 @@ export default function TenantsPage() {
       {/* Search */}
       <form onSubmit={handleSearch} className="flex gap-2">
         <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="חיפוש עסקים..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pr-10 bg-slate-900 border-slate-800"
+            className="pr-10"
           />
         </div>
       </form>
@@ -97,14 +97,14 @@ export default function TenantsPage() {
       {/* Table */}
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
       ) : (
         <>
           <TenantTable tenants={tenants} onDelete={handleDelete} />
           {pagination && pagination.totalPages > 1 && (
             <div className="flex items-center justify-between">
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-muted-foreground">
                 מציג {tenants.length} מתוך {pagination.total} עסקים
               </p>
             </div>

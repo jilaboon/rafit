@@ -9,9 +9,9 @@ import { cn } from '@/lib/utils';
 import { ImpersonateButton } from '@/components/admin/impersonate-button';
 
 const statusColors: Record<string, string> = {
-  ACTIVE: 'bg-green-500/20 text-green-400 border-green-500/30',
-  SUSPENDED: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-  CANCELLED: 'bg-red-500/20 text-red-400 border-red-500/30',
+  ACTIVE: 'bg-green-500/20 text-green-600 border-green-500/30',
+  SUSPENDED: 'bg-yellow-500/20 text-yellow-600 border-yellow-500/30',
+  CANCELLED: 'bg-red-500/20 text-red-600 border-red-500/30',
 };
 
 async function getTenant(id: string) {
@@ -69,7 +69,7 @@ export default async function TenantDetailPage({
       {/* Header */}
       <div className="flex items-center gap-4">
         <Link href="/admin/tenants">
-          <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white">
+          <Button variant="ghost" size="icon">
             <ArrowLeft className="h-5 w-5 rotate-180" />
           </Button>
         </Link>
@@ -80,52 +80,52 @@ export default async function TenantDetailPage({
               variant="outline"
               className={cn('capitalize', statusColors[tenant.status])}
             >
-              {tenant.status.toLowerCase()}
+              {tenant.status === 'ACTIVE' ? 'פעיל' : tenant.status === 'SUSPENDED' ? 'מושהה' : 'מבוטל'}
             </Badge>
           </div>
-          <p className="text-slate-400 mt-1">{tenant.slug}</p>
+          <p className="text-muted-foreground mt-1">{tenant.slug}</p>
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-3">
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-400">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
               משתמשים
             </CardTitle>
-            <Users className="h-4 w-4 text-slate-500" />
+            <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-white">
+            <div className="text-2xl font-bold">
               {tenant.tenantUsers.length}
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-400">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
               סניפים
             </CardTitle>
-            <Building2 className="h-4 w-4 text-slate-500" />
+            <Building2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-white">
+            <div className="text-2xl font-bold">
               {tenant.branches.length}
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-400">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
               שירותים
             </CardTitle>
-            <Layers className="h-4 w-4 text-slate-500" />
+            <Layers className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-white">
+            <div className="text-2xl font-bold">
               {tenant._count.services}
             </div>
           </CardContent>
@@ -133,60 +133,60 @@ export default async function TenantDetailPage({
       </div>
 
       {/* Info */}
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader>
-          <CardTitle className="text-white">פרטי העסק</CardTitle>
+          <CardTitle>פרטי העסק</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <p className="text-sm text-slate-500">אימייל</p>
-              <p className="text-white">{tenant.email || '-'}</p>
+              <p className="text-sm text-muted-foreground">אימייל</p>
+              <p>{tenant.email || '-'}</p>
             </div>
             <div>
-              <p className="text-sm text-slate-500">טלפון</p>
-              <p className="text-white">{tenant.phone || '-'}</p>
+              <p className="text-sm text-muted-foreground">טלפון</p>
+              <p>{tenant.phone || '-'}</p>
             </div>
             <div>
-              <p className="text-sm text-slate-500">אזור זמן</p>
-              <p className="text-white">{tenant.timezone}</p>
+              <p className="text-sm text-muted-foreground">אזור זמן</p>
+              <p>{tenant.timezone}</p>
             </div>
             <div>
-              <p className="text-sm text-slate-500">מטבע</p>
-              <p className="text-white">{tenant.currency}</p>
+              <p className="text-sm text-muted-foreground">מטבע</p>
+              <p>{tenant.currency}</p>
             </div>
             <div>
-              <p className="text-sm text-slate-500">נוצר</p>
-              <p className="text-white">
+              <p className="text-sm text-muted-foreground">נוצר</p>
+              <p>
                 {new Date(tenant.createdAt).toLocaleDateString('he-IL')}
               </p>
             </div>
             <div>
-              <p className="text-sm text-slate-500">שפה</p>
-              <p className="text-white">{tenant.locale}</p>
+              <p className="text-sm text-muted-foreground">שפה</p>
+              <p>{tenant.locale}</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Users */}
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader>
-          <CardTitle className="text-white">משתמשים</CardTitle>
+          <CardTitle>משתמשים</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
             {tenant.tenantUsers.map((tu) => (
               <div
                 key={tu.id}
-                className="flex items-center justify-between p-3 rounded-lg bg-slate-800/50"
+                className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
               >
                 <div>
-                  <p className="font-medium text-white">{tu.user.name}</p>
-                  <p className="text-sm text-slate-500">{tu.user.email}</p>
+                  <p className="font-medium">{tu.user.name}</p>
+                  <p className="text-sm text-muted-foreground">{tu.user.email}</p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Badge variant="outline" className="text-slate-400">
+                  <Badge variant="outline">
                     {tu.role}
                   </Badge>
                   {!tu.user.isSuperAdmin && (
@@ -199,7 +199,7 @@ export default async function TenantDetailPage({
               </div>
             ))}
             {tenant.tenantUsers.length === 0 && (
-              <p className="text-slate-500 text-center py-4">
+              <p className="text-muted-foreground text-center py-4">
                 אין משתמשים
               </p>
             )}
@@ -208,31 +208,31 @@ export default async function TenantDetailPage({
       </Card>
 
       {/* Branches */}
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader>
-          <CardTitle className="text-white">סניפים</CardTitle>
+          <CardTitle>סניפים</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
             {tenant.branches.map((branch) => (
               <div
                 key={branch.id}
-                className="flex items-center justify-between p-3 rounded-lg bg-slate-800/50"
+                className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
               >
                 <div>
-                  <p className="font-medium text-white">{branch.name}</p>
-                  <p className="text-sm text-slate-500">{branch.city || branch.slug}</p>
+                  <p className="font-medium">{branch.name}</p>
+                  <p className="text-sm text-muted-foreground">{branch.city || branch.slug}</p>
                 </div>
                 <Badge
                   variant="outline"
-                  className={branch.isActive ? 'text-green-400' : 'text-slate-500'}
+                  className={branch.isActive ? 'text-green-600' : 'text-muted-foreground'}
                 >
                   {branch.isActive ? 'פעיל' : 'לא פעיל'}
                 </Badge>
               </div>
             ))}
             {tenant.branches.length === 0 && (
-              <p className="text-slate-500 text-center py-4">
+              <p className="text-muted-foreground text-center py-4">
                 אין סניפים
               </p>
             )}

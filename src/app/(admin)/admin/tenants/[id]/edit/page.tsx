@@ -141,7 +141,7 @@ export default function TenantEditPage({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-red-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -151,15 +151,15 @@ export default function TenantEditPage({
       <div className="space-y-6" dir="rtl">
         <div className="flex items-center gap-4">
           <Link href="/admin/tenants">
-            <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white">
+            <Button variant="ghost" size="icon">
               <ArrowLeft className="h-5 w-5 rotate-180" />
             </Button>
           </Link>
           <h1 className="text-3xl font-bold">שגיאה</h1>
         </div>
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
           <CardContent className="pt-6">
-            <p className="text-red-500">{error}</p>
+            <p className="text-destructive">{error}</p>
           </CardContent>
         </Card>
       </div>
@@ -172,19 +172,19 @@ export default function TenantEditPage({
     <div className="space-y-6" dir="rtl">
       <div className="flex items-center gap-4">
         <Link href={`/admin/tenants/${tenantId}`}>
-          <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white">
+          <Button variant="ghost" size="icon">
             <ArrowLeft className="h-5 w-5 rotate-180" />
           </Button>
         </Link>
         <div>
           <h1 className="text-3xl font-bold">עריכת עסק</h1>
-          <p className="text-slate-400 mt-1">{formData.name}</p>
+          <p className="text-muted-foreground mt-1">{formData.name}</p>
         </div>
       </div>
 
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader>
-          <CardTitle className="text-white">פרטי העסק</CardTitle>
+          <CardTitle>פרטי העסק</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -197,7 +197,6 @@ export default function TenantEditPage({
                   onChange={(e) =>
                     setFormData({ ...formData, name: e.target.value })
                   }
-                  className="bg-slate-800 border-slate-700"
                   required
                 />
               </div>
@@ -207,7 +206,7 @@ export default function TenantEditPage({
                 <Input
                   id="slug"
                   value={formData.slug}
-                  className="bg-slate-800/50 border-slate-700 text-slate-500"
+                  className="text-muted-foreground"
                   disabled
                   dir="ltr"
                 />
@@ -222,7 +221,6 @@ export default function TenantEditPage({
                   onChange={(e) =>
                     setFormData({ ...formData, email: e.target.value || null })
                   }
-                  className="bg-slate-800 border-slate-700"
                   placeholder="contact@business.com"
                   dir="ltr"
                 />
@@ -236,7 +234,6 @@ export default function TenantEditPage({
                   onChange={(e) =>
                     setFormData({ ...formData, phone: e.target.value || null })
                   }
-                  className="bg-slate-800 border-slate-700"
                   placeholder="050-XXX-XXXX"
                   dir="ltr"
                 />
@@ -250,7 +247,7 @@ export default function TenantEditPage({
                     setFormData({ ...formData, timezone: value })
                   }
                 >
-                  <SelectTrigger className="bg-slate-800 border-slate-700">
+                  <SelectTrigger>
                     <SelectValue placeholder="בחר אזור זמן" />
                   </SelectTrigger>
                   <SelectContent>
@@ -271,7 +268,7 @@ export default function TenantEditPage({
                     setFormData({ ...formData, currency: value })
                   }
                 >
-                  <SelectTrigger className="bg-slate-800 border-slate-700">
+                  <SelectTrigger>
                     <SelectValue placeholder="בחר מטבע" />
                   </SelectTrigger>
                   <SelectContent>
@@ -292,7 +289,7 @@ export default function TenantEditPage({
                     setFormData({ ...formData, locale: value })
                   }
                 >
-                  <SelectTrigger className="bg-slate-800 border-slate-700">
+                  <SelectTrigger>
                     <SelectValue placeholder="בחר שפה" />
                   </SelectTrigger>
                   <SelectContent>
@@ -313,7 +310,7 @@ export default function TenantEditPage({
                     setFormData({ ...formData, status: value })
                   }
                 >
-                  <SelectTrigger className="bg-slate-800 border-slate-700">
+                  <SelectTrigger>
                     <SelectValue placeholder="בחר סטטוס" />
                   </SelectTrigger>
                   <SelectContent>
@@ -328,14 +325,13 @@ export default function TenantEditPage({
             </div>
 
             {error && (
-              <p className="text-red-500 text-sm">{error}</p>
+              <p className="text-destructive text-sm">{error}</p>
             )}
 
             <div className="flex gap-3 pt-4">
               <Button
                 type="submit"
                 disabled={isSaving}
-                className="bg-red-600 hover:bg-red-700"
               >
                 {isSaving ? (
                   <>
@@ -350,7 +346,6 @@ export default function TenantEditPage({
                 <Button
                   type="button"
                   variant="outline"
-                  className="border-slate-700 text-slate-300"
                 >
                   ביטול
                 </Button>

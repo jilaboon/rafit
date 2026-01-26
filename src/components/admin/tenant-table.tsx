@@ -40,9 +40,15 @@ interface TenantTableProps {
 }
 
 const statusColors: Record<string, string> = {
-  ACTIVE: 'bg-green-500/20 text-green-400 border-green-500/30',
-  SUSPENDED: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-  CANCELLED: 'bg-red-500/20 text-red-400 border-red-500/30',
+  ACTIVE: 'bg-green-500/20 text-green-600 border-green-500/30',
+  SUSPENDED: 'bg-yellow-500/20 text-yellow-600 border-yellow-500/30',
+  CANCELLED: 'bg-red-500/20 text-red-600 border-red-500/30',
+};
+
+const statusLabels: Record<string, string> = {
+  ACTIVE: 'פעיל',
+  SUSPENDED: 'מושהה',
+  CANCELLED: 'מבוטל',
 };
 
 export function TenantTable({ tenants, onDelete }: TenantTableProps) {
@@ -67,45 +73,42 @@ export function TenantTable({ tenants, onDelete }: TenantTableProps) {
   };
 
   return (
-    <div className="rounded-lg border border-slate-800 overflow-hidden">
+    <div className="rounded-lg border overflow-hidden">
       <Table>
         <TableHeader>
-          <TableRow className="border-slate-800 hover:bg-slate-900/50">
-            <TableHead className="text-slate-400 text-right">שם</TableHead>
-            <TableHead className="text-slate-400 text-right">מזהה</TableHead>
-            <TableHead className="text-slate-400 text-right">סטטוס</TableHead>
-            <TableHead className="text-slate-400 text-right">משתמשים</TableHead>
-            <TableHead className="text-slate-400 text-right">סניפים</TableHead>
-            <TableHead className="text-slate-400 text-right">נוצר</TableHead>
-            <TableHead className="text-slate-400 w-[50px]"></TableHead>
+          <TableRow>
+            <TableHead className="text-right">שם</TableHead>
+            <TableHead className="text-right">מזהה</TableHead>
+            <TableHead className="text-right">סטטוס</TableHead>
+            <TableHead className="text-right">משתמשים</TableHead>
+            <TableHead className="text-right">סניפים</TableHead>
+            <TableHead className="text-right">נוצר</TableHead>
+            <TableHead className="w-[50px]"></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {tenants.map((tenant) => (
-            <TableRow
-              key={tenant.id}
-              className="border-slate-800 hover:bg-slate-900/50"
-            >
-              <TableCell className="font-medium text-white">
+            <TableRow key={tenant.id}>
+              <TableCell className="font-medium">
                 {tenant.name}
               </TableCell>
-              <TableCell className="text-slate-400">{tenant.slug}</TableCell>
+              <TableCell className="text-muted-foreground">{tenant.slug}</TableCell>
               <TableCell>
                 <Badge
                   variant="outline"
                   className={cn('capitalize', statusColors[tenant.status])}
                 >
-                  {tenant.status.toLowerCase()}
+                  {statusLabels[tenant.status] || tenant.status.toLowerCase()}
                 </Badge>
               </TableCell>
-              <TableCell className="text-slate-300">
+              <TableCell>
                 {tenant._count.tenantUsers}
               </TableCell>
-              <TableCell className="text-slate-300">
+              <TableCell>
                 {tenant._count.branches}
               </TableCell>
-              <TableCell className="text-slate-400">
-                {new Date(tenant.createdAt).toLocaleDateString()}
+              <TableCell className="text-muted-foreground">
+                {new Date(tenant.createdAt).toLocaleDateString('he-IL')}
               </TableCell>
               <TableCell>
                 <DropdownMenu>
@@ -113,7 +116,6 @@ export function TenantTable({ tenants, onDelete }: TenantTableProps) {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="text-slate-400 hover:text-white"
                     >
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
@@ -132,7 +134,7 @@ export function TenantTable({ tenants, onDelete }: TenantTableProps) {
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      className="text-red-600"
+                      className="text-destructive"
                       onClick={() => handleDelete(tenant.id)}
                       disabled={deletingId === tenant.id}
                     >
@@ -148,7 +150,7 @@ export function TenantTable({ tenants, onDelete }: TenantTableProps) {
             <TableRow>
               <TableCell
                 colSpan={7}
-                className="text-center text-slate-500 py-8"
+                className="text-center text-muted-foreground py-8"
               >
                 לא נמצאו עסקים
               </TableCell>

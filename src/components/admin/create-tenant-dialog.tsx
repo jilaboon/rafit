@@ -47,7 +47,7 @@ export function CreateTenantDialog({ onSuccess }: CreateTenantDialogProps) {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to create tenant');
+        throw new Error(data.error || 'שגיאה ביצירת העסק');
       }
 
       setOpen(false);
@@ -55,7 +55,7 @@ export function CreateTenantDialog({ onSuccess }: CreateTenantDialogProps) {
       router.refresh();
       onSuccess?.();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : 'אירעה שגיאה');
     } finally {
       setIsLoading(false);
     }
@@ -73,15 +73,15 @@ export function CreateTenantDialog({ onSuccess }: CreateTenantDialogProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-red-600 hover:bg-red-700">
+        <Button>
           <Plus className="h-4 w-4 ml-2" />
           יצירת עסק
         </Button>
       </DialogTrigger>
-      <DialogContent className="bg-slate-900 border-slate-800 text-white" dir="rtl">
+      <DialogContent dir="rtl">
         <DialogHeader>
           <DialogTitle>יצירת עסק חדש</DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogDescription>
             הוספת עסק חדש לפלטפורמה.
           </DialogDescription>
         </DialogHeader>
@@ -100,7 +100,6 @@ export function CreateTenantDialog({ onSuccess }: CreateTenantDialogProps) {
                   });
                 }}
                 placeholder="הזן שם עסק"
-                className="bg-slate-800 border-slate-700"
                 required
               />
             </div>
@@ -113,12 +112,11 @@ export function CreateTenantDialog({ onSuccess }: CreateTenantDialogProps) {
                   setFormData({ ...formData, slug: e.target.value })
                 }
                 placeholder="business-name"
-                className="bg-slate-800 border-slate-700"
                 pattern="^[a-z0-9-]+$"
                 required
                 dir="ltr"
               />
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 רק אותיות קטנות באנגלית, מספרים ומקפים
               </p>
             </div>
@@ -132,7 +130,6 @@ export function CreateTenantDialog({ onSuccess }: CreateTenantDialogProps) {
                   setFormData({ ...formData, email: e.target.value })
                 }
                 placeholder="contact@business.com"
-                className="bg-slate-800 border-slate-700"
                 dir="ltr"
               />
             </div>
@@ -145,19 +142,17 @@ export function CreateTenantDialog({ onSuccess }: CreateTenantDialogProps) {
                   setFormData({ ...formData, phone: e.target.value })
                 }
                 placeholder="050-XXX-XXXX"
-                className="bg-slate-800 border-slate-700"
                 dir="ltr"
               />
             </div>
             {error && (
-              <p className="text-red-500 text-sm">{error}</p>
+              <p className="text-destructive text-sm">{error}</p>
             )}
           </div>
           <DialogFooter className="flex-row-reverse gap-2">
             <Button
               type="submit"
               disabled={isLoading}
-              className="bg-red-600 hover:bg-red-700"
             >
               {isLoading ? 'יוצר...' : 'יצירת עסק'}
             </Button>
@@ -165,7 +160,6 @@ export function CreateTenantDialog({ onSuccess }: CreateTenantDialogProps) {
               type="button"
               variant="outline"
               onClick={() => setOpen(false)}
-              className="border-slate-700 text-slate-300"
             >
               ביטול
             </Button>

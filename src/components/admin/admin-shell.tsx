@@ -26,9 +26,11 @@ import {
   LogOut,
   ChevronLeft,
   Shield,
+  Bell,
 } from 'lucide-react';
 import { getInitials } from '@/lib/utils';
 import { ImpersonationBanner } from './impersonation-banner';
+import { Badge } from '@/components/ui/badge';
 
 interface AdminShellProps {
   children: React.ReactNode;
@@ -55,7 +57,7 @@ export function AdminShell({ children, user }: AdminShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-muted/30">
       {/* Impersonation Banner */}
       {user.isImpersonating && (
         <ImpersonationBanner impersonatedUserId={user.impersonatedUserId} />
@@ -72,24 +74,24 @@ export function AdminShell({ children, user }: AdminShellProps) {
       {/* Sidebar */}
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 border-r border-slate-800 transform transition-transform duration-200 ease-in-out lg:translate-x-0',
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+          'fixed inset-y-0 right-0 z-50 w-72 bg-background border-l transform transition-transform duration-200 ease-in-out lg:translate-x-0',
+          sidebarOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0',
           user.isImpersonating ? 'top-12' : 'top-0'
         )}
       >
         <div className="flex h-full flex-col">
           {/* Logo */}
-          <div className="flex h-16 items-center justify-between border-b border-slate-800 px-6">
+          <div className="flex h-16 items-center justify-between border-b px-6">
             <Link href="/admin" className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-600">
-                <Shield className="h-5 w-5 text-white" />
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
+                <Shield className="h-5 w-5 text-primary-foreground" />
               </div>
-              <span className="text-xl font-bold text-white">ניהול</span>
+              <span className="text-xl font-bold">ניהול ראשי</span>
             </Link>
             <Button
               variant="ghost"
               size="icon"
-              className="lg:hidden text-slate-400 hover:text-white"
+              className="lg:hidden"
               onClick={() => setSidebarOpen(false)}
             >
               <X className="h-5 w-5" />
@@ -108,8 +110,8 @@ export function AdminShell({ children, user }: AdminShellProps) {
                   className={cn(
                     'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                     isActive
-                      ? 'bg-red-600 text-white'
-                      : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                   )}
                   onClick={() => setSidebarOpen(false)}
                 >
@@ -121,24 +123,24 @@ export function AdminShell({ children, user }: AdminShellProps) {
           </nav>
 
           {/* User section */}
-          <div className="border-t border-slate-800 p-4">
+          <div className="border-t p-4">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="w-full justify-start gap-3 px-3 text-slate-300 hover:bg-slate-800 hover:text-white"
-                >
+                <Button variant="ghost" className="w-full justify-start gap-3 px-3">
                   <Avatar className="h-8 w-8">
                     <AvatarImage src={user.image} alt={user.name} />
-                    <AvatarFallback className="bg-red-600 text-white">
-                      {getInitials(user.name)}
-                    </AvatarFallback>
+                    <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
                   </Avatar>
                   <div className="flex flex-1 flex-col items-start text-sm">
                     <span className="font-medium">{user.name}</span>
-                    <span className="text-xs text-slate-500">{user.email}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">{user.email}</span>
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                        מנהל ראשי
+                      </Badge>
+                    </div>
                   </div>
-                  <ChevronLeft className="h-4 w-4 text-slate-500 rotate-180" />
+                  <ChevronLeft className="h-4 w-4 text-muted-foreground" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
@@ -152,7 +154,7 @@ export function AdminShell({ children, user }: AdminShellProps) {
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  className="text-red-600 focus:text-red-600"
+                  className="text-destructive focus:text-destructive"
                   onClick={() => signOut({ callbackUrl: '/' })}
                 >
                   <LogOut className="ml-2 h-4 w-4" />
@@ -165,19 +167,24 @@ export function AdminShell({ children, user }: AdminShellProps) {
       </aside>
 
       {/* Main content */}
-      <div className={cn('lg:pl-64', user.isImpersonating ? 'pt-12' : '')}>
+      <div className={cn('lg:pr-72', user.isImpersonating ? 'pt-12' : '')}>
         {/* Top header */}
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-slate-800 bg-slate-900 px-4 lg:px-6">
+        <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-4 lg:px-6">
           <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden text-slate-400 hover:text-white"
+            className="lg:hidden"
             onClick={() => setSidebarOpen(true)}
           >
             <Menu className="h-5 w-5" />
           </Button>
 
           <div className="flex-1" />
+
+          {/* Notifications */}
+          <Button variant="ghost" size="icon" className="relative">
+            <Bell className="h-5 w-5" />
+          </Button>
 
           {/* Mobile user menu */}
           <div className="lg:hidden">
@@ -186,9 +193,7 @@ export function AdminShell({ children, user }: AdminShellProps) {
                 <Button variant="ghost" size="icon">
                   <Avatar className="h-8 w-8">
                     <AvatarImage src={user.image} alt={user.name} />
-                    <AvatarFallback className="bg-red-600 text-white">
-                      {getInitials(user.name)}
-                    </AvatarFallback>
+                    <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
@@ -204,7 +209,7 @@ export function AdminShell({ children, user }: AdminShellProps) {
         </header>
 
         {/* Page content */}
-        <main className="p-4 lg:p-6 text-white">{children}</main>
+        <main className="p-4 lg:p-6">{children}</main>
       </div>
     </div>
   );
