@@ -41,11 +41,11 @@ export function ImpersonationBanner({ impersonatedUserId }: ImpersonationBannerP
         <div className="flex items-center gap-2">
           <AlertTriangle className="h-5 w-5" />
           <span className="font-medium">
-            You are currently impersonating a user
+            אתה מחובר כעת כמשתמש אחר
           </span>
           {impersonatedUserId && (
             <span className="text-red-200 text-sm">
-              (User ID: {impersonatedUserId.slice(0, 8)}...)
+              (מזהה: {impersonatedUserId.slice(0, 8)}...)
             </span>
           )}
         </div>
@@ -57,11 +57,11 @@ export function ImpersonationBanner({ impersonatedUserId }: ImpersonationBannerP
           className="bg-white text-red-600 hover:bg-red-50 border-white"
         >
           {isLoading ? (
-            'Stopping...'
+            'מפסיק...'
           ) : (
             <>
-              <X className="h-4 w-4 mr-1" />
-              Stop Impersonation
+              <X className="h-4 w-4 ml-1" />
+              הפסק התחזות
             </>
           )}
         </Button>

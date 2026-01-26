@@ -88,11 +88,11 @@ export default function UsersPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" dir="rtl">
       <div>
-        <h1 className="text-3xl font-bold">Users</h1>
+        <h1 className="text-3xl font-bold">משתמשים</h1>
         <p className="text-slate-400 mt-1">
-          View and manage all users across the platform
+          צפייה וניהול כל המשתמשים בפלטפורמה
         </p>
       </div>
 
@@ -101,10 +101,10 @@ export default function UsersPage() {
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
           <Input
-            placeholder="Search users..."
+            placeholder="חיפוש משתמשים..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 bg-slate-900 border-slate-800"
+            className="pr-10 bg-slate-900 border-slate-800"
           />
         </div>
       </form>
@@ -120,11 +120,11 @@ export default function UsersPage() {
             <Table>
               <TableHeader>
                 <TableRow className="border-slate-800 hover:bg-slate-900/50">
-                  <TableHead className="text-slate-400">Name</TableHead>
-                  <TableHead className="text-slate-400">Email</TableHead>
-                  <TableHead className="text-slate-400">Status</TableHead>
-                  <TableHead className="text-slate-400">Tenants</TableHead>
-                  <TableHead className="text-slate-400">Created</TableHead>
+                  <TableHead className="text-slate-400 text-right">שם</TableHead>
+                  <TableHead className="text-slate-400 text-right">אימייל</TableHead>
+                  <TableHead className="text-slate-400 text-right">סטטוס</TableHead>
+                  <TableHead className="text-slate-400 text-right">עסקים</TableHead>
+                  <TableHead className="text-slate-400 text-right">נוצר</TableHead>
                   <TableHead className="text-slate-400 w-[100px]"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -195,7 +195,7 @@ export default function UsersPage() {
                       colSpan={6}
                       className="text-center text-slate-500 py-8"
                     >
-                      No users found
+                      לא נמצאו משתמשים
                     </TableCell>
                   </TableRow>
                 )}
@@ -205,7 +205,7 @@ export default function UsersPage() {
           {pagination && pagination.totalPages > 1 && (
             <div className="flex items-center justify-between">
               <p className="text-sm text-slate-500">
-                Showing {users.length} of {pagination.total} users
+                מציג {users.length} מתוך {pagination.total} משתמשים
               </p>
             </div>
           )}

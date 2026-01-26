@@ -74,21 +74,21 @@ export function CreateTenantDialog({ onSuccess }: CreateTenantDialogProps) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button className="bg-red-600 hover:bg-red-700">
-          <Plus className="h-4 w-4 mr-2" />
-          Create Tenant
+          <Plus className="h-4 w-4 ml-2" />
+          יצירת עסק
         </Button>
       </DialogTrigger>
-      <DialogContent className="bg-slate-900 border-slate-800 text-white">
+      <DialogContent className="bg-slate-900 border-slate-800 text-white" dir="rtl">
         <DialogHeader>
-          <DialogTitle>Create New Tenant</DialogTitle>
+          <DialogTitle>יצירת עסק חדש</DialogTitle>
           <DialogDescription className="text-slate-400">
-            Add a new business to the platform.
+            הוספת עסק חדש לפלטפורמה.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="name">Business Name</Label>
+              <Label htmlFor="name">שם העסק</Label>
               <Input
                 id="name"
                 value={formData.name}
@@ -99,13 +99,13 @@ export function CreateTenantDialog({ onSuccess }: CreateTenantDialogProps) {
                     slug: generateSlug(e.target.value),
                   });
                 }}
-                placeholder="Enter business name"
+                placeholder="הזן שם עסק"
                 className="bg-slate-800 border-slate-700"
                 required
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="slug">Slug (URL identifier)</Label>
+              <Label htmlFor="slug">מזהה (URL)</Label>
               <Input
                 id="slug"
                 value={formData.slug}
@@ -116,13 +116,14 @@ export function CreateTenantDialog({ onSuccess }: CreateTenantDialogProps) {
                 className="bg-slate-800 border-slate-700"
                 pattern="^[a-z0-9-]+$"
                 required
+                dir="ltr"
               />
               <p className="text-xs text-slate-500">
-                Only lowercase letters, numbers, and hyphens
+                רק אותיות קטנות באנגלית, מספרים ומקפים
               </p>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="email">Contact Email</Label>
+              <Label htmlFor="email">אימייל ליצירת קשר</Label>
               <Input
                 id="email"
                 type="email"
@@ -132,39 +133,41 @@ export function CreateTenantDialog({ onSuccess }: CreateTenantDialogProps) {
                 }
                 placeholder="contact@business.com"
                 className="bg-slate-800 border-slate-700"
+                dir="ltr"
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="phone">Phone</Label>
+              <Label htmlFor="phone">טלפון</Label>
               <Input
                 id="phone"
                 value={formData.phone}
                 onChange={(e) =>
                   setFormData({ ...formData, phone: e.target.value })
                 }
-                placeholder="+972-XX-XXX-XXXX"
+                placeholder="050-XXX-XXXX"
                 className="bg-slate-800 border-slate-700"
+                dir="ltr"
               />
             </div>
             {error && (
               <p className="text-red-500 text-sm">{error}</p>
             )}
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex-row-reverse gap-2">
+            <Button
+              type="submit"
+              disabled={isLoading}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isLoading ? 'יוצר...' : 'יצירת עסק'}
+            </Button>
             <Button
               type="button"
               variant="outline"
               onClick={() => setOpen(false)}
               className="border-slate-700 text-slate-300"
             >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              {isLoading ? 'Creating...' : 'Create Tenant'}
+              ביטול
             </Button>
           </DialogFooter>
         </form>

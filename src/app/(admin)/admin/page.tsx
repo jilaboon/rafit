@@ -53,11 +53,11 @@ export default async function AdminDashboard() {
   const stats = await getStats();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" dir="rtl">
       <div>
-        <h1 className="text-3xl font-bold">Platform Overview</h1>
+        <h1 className="text-3xl font-bold">סקירת הפלטפורמה</h1>
         <p className="text-slate-400 mt-1">
-          Monitor and manage all tenants on the platform
+          ניטור וניהול כל העסקים בפלטפורמה
         </p>
       </div>
 
@@ -66,14 +66,14 @@ export default async function AdminDashboard() {
         <Card className="bg-slate-900 border-slate-800">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-slate-400">
-              Total Tenants
+              סה״כ עסקים
             </CardTitle>
             <Building2 className="h-4 w-4 text-slate-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-white">{stats.totalTenants}</div>
             <p className="text-xs text-slate-500">
-              {stats.activeTenants} active
+              {stats.activeTenants} פעילים
             </p>
           </CardContent>
         </Card>
@@ -81,14 +81,14 @@ export default async function AdminDashboard() {
         <Card className="bg-slate-900 border-slate-800">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-slate-400">
-              Total Users
+              סה״כ משתמשים
             </CardTitle>
             <Users className="h-4 w-4 text-slate-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-white">{stats.totalUsers}</div>
             <p className="text-xs text-slate-500">
-              Across all tenants
+              בכל העסקים
             </p>
           </CardContent>
         </Card>
@@ -96,14 +96,14 @@ export default async function AdminDashboard() {
         <Card className="bg-slate-900 border-slate-800">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-slate-400">
-              Total Customers
+              סה״כ לקוחות
             </CardTitle>
             <TrendingUp className="h-4 w-4 text-slate-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-white">{stats.totalCustomers}</div>
             <p className="text-xs text-slate-500">
-              Platform-wide
+              בכל הפלטפורמה
             </p>
           </CardContent>
         </Card>
@@ -111,14 +111,14 @@ export default async function AdminDashboard() {
         <Card className="bg-slate-900 border-slate-800">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-slate-400">
-              Recent Activity
+              פעילות אחרונה
             </CardTitle>
             <Activity className="h-4 w-4 text-slate-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-white">{stats.recentActivity}</div>
             <p className="text-xs text-slate-500">
-              Last 24 hours
+              24 שעות אחרונות
             </p>
           </CardContent>
         </Card>
@@ -127,7 +127,7 @@ export default async function AdminDashboard() {
       {/* Recent Tenants */}
       <Card className="bg-slate-900 border-slate-800">
         <CardHeader>
-          <CardTitle className="text-white">Recent Tenants</CardTitle>
+          <CardTitle className="text-white">עסקים אחרונים</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -142,7 +142,7 @@ export default async function AdminDashboard() {
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-slate-400">
-                    {tenant._count.tenantUsers} users
+                    {tenant._count.tenantUsers} משתמשים
                   </p>
                   <p className="text-xs text-slate-500">
                     {new Date(tenant.createdAt).toLocaleDateString()}
@@ -152,7 +152,7 @@ export default async function AdminDashboard() {
             ))}
             {stats.recentTenants.length === 0 && (
               <p className="text-slate-500 text-center py-4">
-                No tenants yet
+                אין עסקים עדיין
               </p>
             )}
           </div>

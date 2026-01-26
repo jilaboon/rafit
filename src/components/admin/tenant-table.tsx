@@ -49,7 +49,7 @@ export function TenantTable({ tenants, onDelete }: TenantTableProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this tenant?')) return;
+    if (!confirm('האם אתה בטוח שברצונך למחוק עסק זה?')) return;
 
     setDeletingId(id);
     try {
@@ -71,12 +71,12 @@ export function TenantTable({ tenants, onDelete }: TenantTableProps) {
       <Table>
         <TableHeader>
           <TableRow className="border-slate-800 hover:bg-slate-900/50">
-            <TableHead className="text-slate-400">Name</TableHead>
-            <TableHead className="text-slate-400">Slug</TableHead>
-            <TableHead className="text-slate-400">Status</TableHead>
-            <TableHead className="text-slate-400">Users</TableHead>
-            <TableHead className="text-slate-400">Branches</TableHead>
-            <TableHead className="text-slate-400">Created</TableHead>
+            <TableHead className="text-slate-400 text-right">שם</TableHead>
+            <TableHead className="text-slate-400 text-right">מזהה</TableHead>
+            <TableHead className="text-slate-400 text-right">סטטוס</TableHead>
+            <TableHead className="text-slate-400 text-right">משתמשים</TableHead>
+            <TableHead className="text-slate-400 text-right">סניפים</TableHead>
+            <TableHead className="text-slate-400 text-right">נוצר</TableHead>
             <TableHead className="text-slate-400 w-[50px]"></TableHead>
           </TableRow>
         </TableHeader>
@@ -121,14 +121,14 @@ export function TenantTable({ tenants, onDelete }: TenantTableProps) {
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem asChild>
                       <Link href={`/admin/tenants/${tenant.id}`}>
-                        <Eye className="mr-2 h-4 w-4" />
-                        View Details
+                        <Eye className="ml-2 h-4 w-4" />
+                        צפייה בפרטים
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link href={`/admin/tenants/${tenant.id}/edit`}>
-                        <Edit className="mr-2 h-4 w-4" />
-                        Edit
+                        <Edit className="ml-2 h-4 w-4" />
+                        עריכה
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem
@@ -136,8 +136,8 @@ export function TenantTable({ tenants, onDelete }: TenantTableProps) {
                       onClick={() => handleDelete(tenant.id)}
                       disabled={deletingId === tenant.id}
                     >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      {deletingId === tenant.id ? 'Deleting...' : 'Delete'}
+                      <Trash2 className="ml-2 h-4 w-4" />
+                      {deletingId === tenant.id ? 'מוחק...' : 'מחיקה'}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -150,7 +150,7 @@ export function TenantTable({ tenants, onDelete }: TenantTableProps) {
                 colSpan={7}
                 className="text-center text-slate-500 py-8"
               >
-                No tenants found
+                לא נמצאו עסקים
               </TableCell>
             </TableRow>
           )}

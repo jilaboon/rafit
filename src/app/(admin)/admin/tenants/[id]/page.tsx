@@ -65,12 +65,12 @@ export default async function TenantDetailPage({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" dir="rtl">
       {/* Header */}
       <div className="flex items-center gap-4">
         <Link href="/admin/tenants">
           <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white">
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="h-5 w-5 rotate-180" />
           </Button>
         </Link>
         <div className="flex-1">
@@ -92,7 +92,7 @@ export default async function TenantDetailPage({
         <Card className="bg-slate-900 border-slate-800">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-slate-400">
-              Users
+              משתמשים
             </CardTitle>
             <Users className="h-4 w-4 text-slate-500" />
           </CardHeader>
@@ -106,7 +106,7 @@ export default async function TenantDetailPage({
         <Card className="bg-slate-900 border-slate-800">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-slate-400">
-              Branches
+              סניפים
             </CardTitle>
             <Building2 className="h-4 w-4 text-slate-500" />
           </CardHeader>
@@ -120,7 +120,7 @@ export default async function TenantDetailPage({
         <Card className="bg-slate-900 border-slate-800">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-slate-400">
-              Services
+              שירותים
             </CardTitle>
             <Layers className="h-4 w-4 text-slate-500" />
           </CardHeader>
@@ -135,34 +135,34 @@ export default async function TenantDetailPage({
       {/* Info */}
       <Card className="bg-slate-900 border-slate-800">
         <CardHeader>
-          <CardTitle className="text-white">Tenant Information</CardTitle>
+          <CardTitle className="text-white">פרטי העסק</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <p className="text-sm text-slate-500">Email</p>
+              <p className="text-sm text-slate-500">אימייל</p>
               <p className="text-white">{tenant.email || '-'}</p>
             </div>
             <div>
-              <p className="text-sm text-slate-500">Phone</p>
+              <p className="text-sm text-slate-500">טלפון</p>
               <p className="text-white">{tenant.phone || '-'}</p>
             </div>
             <div>
-              <p className="text-sm text-slate-500">Timezone</p>
+              <p className="text-sm text-slate-500">אזור זמן</p>
               <p className="text-white">{tenant.timezone}</p>
             </div>
             <div>
-              <p className="text-sm text-slate-500">Currency</p>
+              <p className="text-sm text-slate-500">מטבע</p>
               <p className="text-white">{tenant.currency}</p>
             </div>
             <div>
-              <p className="text-sm text-slate-500">Created</p>
+              <p className="text-sm text-slate-500">נוצר</p>
               <p className="text-white">
-                {new Date(tenant.createdAt).toLocaleDateString()}
+                {new Date(tenant.createdAt).toLocaleDateString('he-IL')}
               </p>
             </div>
             <div>
-              <p className="text-sm text-slate-500">Locale</p>
+              <p className="text-sm text-slate-500">שפה</p>
               <p className="text-white">{tenant.locale}</p>
             </div>
           </div>
@@ -172,7 +172,7 @@ export default async function TenantDetailPage({
       {/* Users */}
       <Card className="bg-slate-900 border-slate-800">
         <CardHeader>
-          <CardTitle className="text-white">Users</CardTitle>
+          <CardTitle className="text-white">משתמשים</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
@@ -200,7 +200,7 @@ export default async function TenantDetailPage({
             ))}
             {tenant.tenantUsers.length === 0 && (
               <p className="text-slate-500 text-center py-4">
-                No users
+                אין משתמשים
               </p>
             )}
           </div>
@@ -210,7 +210,7 @@ export default async function TenantDetailPage({
       {/* Branches */}
       <Card className="bg-slate-900 border-slate-800">
         <CardHeader>
-          <CardTitle className="text-white">Branches</CardTitle>
+          <CardTitle className="text-white">סניפים</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
@@ -227,13 +227,13 @@ export default async function TenantDetailPage({
                   variant="outline"
                   className={branch.isActive ? 'text-green-400' : 'text-slate-500'}
                 >
-                  {branch.isActive ? 'Active' : 'Inactive'}
+                  {branch.isActive ? 'פעיל' : 'לא פעיל'}
                 </Badge>
               </div>
             ))}
             {tenant.branches.length === 0 && (
               <p className="text-slate-500 text-center py-4">
-                No branches
+                אין סניפים
               </p>
             )}
           </div>

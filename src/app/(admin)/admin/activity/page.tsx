@@ -79,11 +79,11 @@ export default function ActivityPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" dir="rtl">
       <div>
-        <h1 className="text-3xl font-bold">Activity Log</h1>
+        <h1 className="text-3xl font-bold">יומן פעילות</h1>
         <p className="text-slate-400 mt-1">
-          Monitor all platform activity and audit events
+          ניטור כל הפעילות והאירועים בפלטפורמה
         </p>
       </div>
 
@@ -92,10 +92,10 @@ export default function ActivityPage() {
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
           <Input
-            placeholder="Filter by action (e.g., user.login)..."
+            placeholder="סינון לפי פעולה (לדוגמה: user.login)..."
             value={actionFilter}
             onChange={(e) => setActionFilter(e.target.value)}
-            className="pl-10 bg-slate-900 border-slate-800"
+            className="pr-10 bg-slate-900 border-slate-800"
           />
         </div>
       </form>
@@ -111,11 +111,11 @@ export default function ActivityPage() {
             <Table>
               <TableHeader>
                 <TableRow className="border-slate-800 hover:bg-slate-900/50">
-                  <TableHead className="text-slate-400">Time</TableHead>
-                  <TableHead className="text-slate-400">User</TableHead>
-                  <TableHead className="text-slate-400">Action</TableHead>
-                  <TableHead className="text-slate-400">Entity</TableHead>
-                  <TableHead className="text-slate-400">IP Address</TableHead>
+                  <TableHead className="text-slate-400 text-right">זמן</TableHead>
+                  <TableHead className="text-slate-400 text-right">משתמש</TableHead>
+                  <TableHead className="text-slate-400 text-right">פעולה</TableHead>
+                  <TableHead className="text-slate-400 text-right">ישות</TableHead>
+                  <TableHead className="text-slate-400 text-right">כתובת IP</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -134,7 +134,7 @@ export default function ActivityPage() {
                           <p className="text-xs text-slate-500">{log.user.email}</p>
                         </div>
                       ) : (
-                        <span className="text-slate-500">System</span>
+                        <span className="text-slate-500">מערכת</span>
                       )}
                     </TableCell>
                     <TableCell>
@@ -170,7 +170,7 @@ export default function ActivityPage() {
                       colSpan={5}
                       className="text-center text-slate-500 py-8"
                     >
-                      No activity logs found
+                      לא נמצאו רשומות פעילות
                     </TableCell>
                   </TableRow>
                 )}
@@ -180,7 +180,7 @@ export default function ActivityPage() {
           {pagination && (
             <div className="flex items-center justify-between">
               <p className="text-sm text-slate-500">
-                Showing {logs.length} of {pagination.total} entries
+                מציג {logs.length} מתוך {pagination.total} רשומות
               </p>
             </div>
           )}

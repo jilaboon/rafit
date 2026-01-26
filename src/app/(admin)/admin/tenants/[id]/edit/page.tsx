@@ -29,31 +29,31 @@ interface TenantData {
 }
 
 const timezones = [
-  { value: 'Asia/Jerusalem', label: 'Asia/Jerusalem (IST)' },
-  { value: 'Europe/London', label: 'Europe/London (GMT/BST)' },
-  { value: 'America/New_York', label: 'America/New_York (EST/EDT)' },
-  { value: 'America/Los_Angeles', label: 'America/Los_Angeles (PST/PDT)' },
-  { value: 'Europe/Paris', label: 'Europe/Paris (CET/CEST)' },
-  { value: 'Asia/Tokyo', label: 'Asia/Tokyo (JST)' },
+  { value: 'Asia/Jerusalem', label: 'ישראל (IST)' },
+  { value: 'Europe/London', label: 'לונדון (GMT/BST)' },
+  { value: 'America/New_York', label: 'ניו יורק (EST/EDT)' },
+  { value: 'America/Los_Angeles', label: 'לוס אנג׳לס (PST/PDT)' },
+  { value: 'Europe/Paris', label: 'פריז (CET/CEST)' },
+  { value: 'Asia/Tokyo', label: 'טוקיו (JST)' },
 ];
 
 const currencies = [
-  { value: 'ILS', label: 'ILS - Israeli Shekel' },
-  { value: 'USD', label: 'USD - US Dollar' },
-  { value: 'EUR', label: 'EUR - Euro' },
-  { value: 'GBP', label: 'GBP - British Pound' },
+  { value: 'ILS', label: '₪ שקל ישראלי' },
+  { value: 'USD', label: '$ דולר אמריקאי' },
+  { value: 'EUR', label: '€ אירו' },
+  { value: 'GBP', label: '£ לירה שטרלינג' },
 ];
 
 const locales = [
-  { value: 'he', label: 'Hebrew (עברית)' },
-  { value: 'en', label: 'English' },
-  { value: 'ar', label: 'Arabic (العربية)' },
+  { value: 'he', label: 'עברית' },
+  { value: 'en', label: 'אנגלית' },
+  { value: 'ar', label: 'ערבית' },
 ];
 
 const statuses = [
-  { value: 'ACTIVE', label: 'Active' },
-  { value: 'SUSPENDED', label: 'Suspended' },
-  { value: 'CANCELLED', label: 'Cancelled' },
+  { value: 'ACTIVE', label: 'פעיל' },
+  { value: 'SUSPENDED', label: 'מושהה' },
+  { value: 'CANCELLED', label: 'מבוטל' },
 ];
 
 export default function TenantEditPage({
@@ -81,7 +81,7 @@ export default function TenantEditPage({
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch tenant');
+        throw new Error(data.error || 'שגיאה בטעינת פרטי העסק');
       }
 
       setFormData({
@@ -96,7 +96,7 @@ export default function TenantEditPage({
         status: data.tenant.status,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : 'אירעה שגיאה');
     } finally {
       setIsLoading(false);
     }
@@ -127,12 +127,12 @@ export default function TenantEditPage({
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to update tenant');
+        throw new Error(data.error || 'שגיאה בעדכון העסק');
       }
 
       router.push(`/admin/tenants/${tenantId}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : 'אירעה שגיאה');
     } finally {
       setIsSaving(false);
     }
@@ -148,14 +148,14 @@ export default function TenantEditPage({
 
   if (error && !formData) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6" dir="rtl">
         <div className="flex items-center gap-4">
           <Link href="/admin/tenants">
             <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white">
-              <ArrowLeft className="h-5 w-5" />
+              <ArrowLeft className="h-5 w-5 rotate-180" />
             </Button>
           </Link>
-          <h1 className="text-3xl font-bold">Error</h1>
+          <h1 className="text-3xl font-bold">שגיאה</h1>
         </div>
         <Card className="bg-slate-900 border-slate-800">
           <CardContent className="pt-6">
@@ -169,28 +169,28 @@ export default function TenantEditPage({
   if (!formData) return null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" dir="rtl">
       <div className="flex items-center gap-4">
         <Link href={`/admin/tenants/${tenantId}`}>
           <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white">
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="h-5 w-5 rotate-180" />
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold">Edit Tenant</h1>
+          <h1 className="text-3xl font-bold">עריכת עסק</h1>
           <p className="text-slate-400 mt-1">{formData.name}</p>
         </div>
       </div>
 
       <Card className="bg-slate-900 border-slate-800">
         <CardHeader>
-          <CardTitle className="text-white">Tenant Information</CardTitle>
+          <CardTitle className="text-white">פרטי העסק</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid gap-6 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="name">Business Name</Label>
+                <Label htmlFor="name">שם העסק</Label>
                 <Input
                   id="name"
                   value={formData.name}
@@ -203,17 +203,18 @@ export default function TenantEditPage({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="slug">Slug (Read-only)</Label>
+                <Label htmlFor="slug">מזהה (לקריאה בלבד)</Label>
                 <Input
                   id="slug"
                   value={formData.slug}
                   className="bg-slate-800/50 border-slate-700 text-slate-500"
                   disabled
+                  dir="ltr"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">Contact Email</Label>
+                <Label htmlFor="email">אימייל ליצירת קשר</Label>
                 <Input
                   id="email"
                   type="email"
@@ -223,11 +224,12 @@ export default function TenantEditPage({
                   }
                   className="bg-slate-800 border-slate-700"
                   placeholder="contact@business.com"
+                  dir="ltr"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="phone">Phone</Label>
+                <Label htmlFor="phone">טלפון</Label>
                 <Input
                   id="phone"
                   value={formData.phone || ''}
@@ -235,12 +237,13 @@ export default function TenantEditPage({
                     setFormData({ ...formData, phone: e.target.value || null })
                   }
                   className="bg-slate-800 border-slate-700"
-                  placeholder="+972-XX-XXX-XXXX"
+                  placeholder="050-XXX-XXXX"
+                  dir="ltr"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="timezone">Timezone</Label>
+                <Label htmlFor="timezone">אזור זמן</Label>
                 <Select
                   value={formData.timezone}
                   onValueChange={(value) =>
@@ -248,7 +251,7 @@ export default function TenantEditPage({
                   }
                 >
                   <SelectTrigger className="bg-slate-800 border-slate-700">
-                    <SelectValue placeholder="Select timezone" />
+                    <SelectValue placeholder="בחר אזור זמן" />
                   </SelectTrigger>
                   <SelectContent>
                     {timezones.map((tz) => (
@@ -261,7 +264,7 @@ export default function TenantEditPage({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="currency">Currency</Label>
+                <Label htmlFor="currency">מטבע</Label>
                 <Select
                   value={formData.currency}
                   onValueChange={(value) =>
@@ -269,7 +272,7 @@ export default function TenantEditPage({
                   }
                 >
                   <SelectTrigger className="bg-slate-800 border-slate-700">
-                    <SelectValue placeholder="Select currency" />
+                    <SelectValue placeholder="בחר מטבע" />
                   </SelectTrigger>
                   <SelectContent>
                     {currencies.map((currency) => (
@@ -282,7 +285,7 @@ export default function TenantEditPage({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="locale">Locale</Label>
+                <Label htmlFor="locale">שפה</Label>
                 <Select
                   value={formData.locale}
                   onValueChange={(value) =>
@@ -290,7 +293,7 @@ export default function TenantEditPage({
                   }
                 >
                   <SelectTrigger className="bg-slate-800 border-slate-700">
-                    <SelectValue placeholder="Select locale" />
+                    <SelectValue placeholder="בחר שפה" />
                   </SelectTrigger>
                   <SelectContent>
                     {locales.map((locale) => (
@@ -303,7 +306,7 @@ export default function TenantEditPage({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="status">Status</Label>
+                <Label htmlFor="status">סטטוס</Label>
                 <Select
                   value={formData.status}
                   onValueChange={(value: 'ACTIVE' | 'SUSPENDED' | 'CANCELLED') =>
@@ -311,7 +314,7 @@ export default function TenantEditPage({
                   }
                 >
                   <SelectTrigger className="bg-slate-800 border-slate-700">
-                    <SelectValue placeholder="Select status" />
+                    <SelectValue placeholder="בחר סטטוס" />
                   </SelectTrigger>
                   <SelectContent>
                     {statuses.map((status) => (
@@ -336,11 +339,11 @@ export default function TenantEditPage({
               >
                 {isSaving ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving...
+                    <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                    שומר...
                   </>
                 ) : (
-                  'Save Changes'
+                  'שמירת שינויים'
                 )}
               </Button>
               <Link href={`/admin/tenants/${tenantId}`}>
@@ -349,7 +352,7 @@ export default function TenantEditPage({
                   variant="outline"
                   className="border-slate-700 text-slate-300"
                 >
-                  Cancel
+                  ביטול
                 </Button>
               </Link>
             </div>

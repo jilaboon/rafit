@@ -17,7 +17,7 @@ export function ImpersonateButton({ userId, userName }: ImpersonateButtonProps) 
   const [isLoading, setIsLoading] = useState(false);
 
   const handleImpersonate = async () => {
-    if (!confirm(`Are you sure you want to impersonate ${userName}?`)) {
+    if (!confirm(`האם אתה בטוח שברצונך להתחבר כ-${userName}?`)) {
       return;
     }
 
@@ -42,11 +42,11 @@ export function ImpersonateButton({ userId, userName }: ImpersonateButtonProps) 
         router.push('/dashboard');
         router.refresh();
       } else {
-        alert(data.error || 'Failed to start impersonation');
+        alert(data.error || 'שגיאה בהתחברות כמשתמש אחר');
       }
     } catch (error) {
       console.error('Failed to impersonate:', error);
-      alert('Failed to start impersonation');
+      alert('שגיאה בהתחברות כמשתמש אחר');
     } finally {
       setIsLoading(false);
     }
@@ -60,8 +60,8 @@ export function ImpersonateButton({ userId, userName }: ImpersonateButtonProps) 
       disabled={isLoading}
       className="text-slate-400 hover:text-white"
     >
-      <UserCog className="h-4 w-4 mr-1" />
-      {isLoading ? 'Loading...' : 'Impersonate'}
+      <UserCog className="h-4 w-4 ml-1" />
+      {isLoading ? 'טוען...' : 'התחבר כמשתמש'}
     </Button>
   );
 }

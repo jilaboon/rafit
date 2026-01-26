@@ -44,10 +44,10 @@ interface AdminShellProps {
 }
 
 const navigation = [
-  { name: 'Overview', href: '/admin', icon: LayoutDashboard },
-  { name: 'Tenants', href: '/admin/tenants', icon: Building2 },
-  { name: 'Users', href: '/admin/users', icon: Users },
-  { name: 'Activity', href: '/admin/activity', icon: Activity },
+  { name: 'סקירה כללית', href: '/admin', icon: LayoutDashboard },
+  { name: 'עסקים', href: '/admin/tenants', icon: Building2 },
+  { name: 'משתמשים', href: '/admin/users', icon: Users },
+  { name: 'פעילות', href: '/admin/activity', icon: Activity },
 ];
 
 export function AdminShell({ children, user }: AdminShellProps) {
@@ -84,7 +84,7 @@ export function AdminShell({ children, user }: AdminShellProps) {
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-600">
                 <Shield className="h-5 w-5 text-white" />
               </div>
-              <span className="text-xl font-bold text-white">Admin</span>
+              <span className="text-xl font-bold text-white">ניהול</span>
             </Link>
             <Button
               variant="ghost"
@@ -142,12 +142,12 @@ export function AdminShell({ children, user }: AdminShellProps) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>Super Admin</DropdownMenuLabel>
+                <DropdownMenuLabel>מנהל ראשי</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <Link href="/admin/settings">
-                    <Settings className="mr-2 h-4 w-4" />
-                    Settings
+                    <Settings className="ml-2 h-4 w-4" />
+                    הגדרות
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
@@ -155,8 +155,8 @@ export function AdminShell({ children, user }: AdminShellProps) {
                   className="text-red-600 focus:text-red-600"
                   onClick={() => signOut({ callbackUrl: '/' })}
                 >
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Sign Out
+                  <LogOut className="ml-2 h-4 w-4" />
+                  התנתק
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -196,7 +196,7 @@ export function AdminShell({ children, user }: AdminShellProps) {
                 <DropdownMenuLabel>{user.name}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => signOut({ callbackUrl: '/' })}>
-                  Sign Out
+                  התנתק
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

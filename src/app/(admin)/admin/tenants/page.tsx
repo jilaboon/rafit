@@ -70,12 +70,12 @@ export default function TenantsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" dir="rtl">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Tenants</h1>
+          <h1 className="text-3xl font-bold">עסקים</h1>
           <p className="text-slate-400 mt-1">
-            Manage all businesses on the platform
+            ניהול כל העסקים בפלטפורמה
           </p>
         </div>
         <CreateTenantDialog onSuccess={() => fetchTenants(search)} />
@@ -86,10 +86,10 @@ export default function TenantsPage() {
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
           <Input
-            placeholder="Search tenants..."
+            placeholder="חיפוש עסקים..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 bg-slate-900 border-slate-800"
+            className="pr-10 bg-slate-900 border-slate-800"
           />
         </div>
       </form>
@@ -105,7 +105,7 @@ export default function TenantsPage() {
           {pagination && pagination.totalPages > 1 && (
             <div className="flex items-center justify-between">
               <p className="text-sm text-slate-500">
-                Showing {tenants.length} of {pagination.total} tenants
+                מציג {tenants.length} מתוך {pagination.total} עסקים
               </p>
             </div>
           )}
