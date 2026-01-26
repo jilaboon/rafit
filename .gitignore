@@ -55,3 +55,4 @@ docker-data/
 *.key
 credentials.json
 service-account.json
+.env*.local
