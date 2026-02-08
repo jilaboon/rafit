@@ -18,7 +18,6 @@ export async function GET(request: NextRequest) {
       const start = new Date(now);
       const previousStart = new Date(now);
       const previousEnd = new Date(now);
-      let daysInPeriod = 30;
 
       switch (p) {
         case 'week':
@@ -28,7 +27,6 @@ export async function GET(request: NextRequest) {
           previousStart.setHours(0, 0, 0, 0);
           previousEnd.setDate(previousEnd.getDate() - 7);
           previousEnd.setHours(0, 0, 0, 0);
-          daysInPeriod = 7;
           break;
         case 'quarter':
           start.setMonth(start.getMonth() - 3);
@@ -37,7 +35,6 @@ export async function GET(request: NextRequest) {
           previousStart.setHours(0, 0, 0, 0);
           previousEnd.setMonth(previousEnd.getMonth() - 3);
           previousEnd.setHours(0, 0, 0, 0);
-          daysInPeriod = 90;
           break;
         case 'month':
         default:
@@ -47,110 +44,137 @@ export async function GET(request: NextRequest) {
           previousStart.setHours(0, 0, 0, 0);
           previousEnd.setMonth(previousEnd.getMonth() - 1);
           previousEnd.setHours(0, 0, 0, 0);
-          daysInPeriod = 30;
           break;
       }
 
-      return { start, previousStart, previousEnd, daysInPeriod };
+      return { start, previousStart, previousEnd };
     };
 
-    const { start, previousStart, previousEnd, daysInPeriod } = getDateRange(period);
+    const { start, previousStart, previousEnd } = getDateRange(period);
 
-    // ========== REVENUE DATA ==========
-    const currentRevenue = await prisma.payment.aggregate({
-      where: {
-        customer: { tenantId },
-        status: 'COMPLETED',
-        createdAt: { gte: start, lte: now },
-      },
-      _sum: { amount: true },
-      _count: true,
-    });
+    // ========== FETCH ALL DATA IN PARALLEL (was 70+ sequential queries) ==========
+    const [
+      currentRevenue,
+      previousRevenue,
+      activeMemberships,
+      newMemberships,
+      cancelledMemberships,
+      previousActiveMemberships,
+      classes,
+      previousClasses,
+      recentPayments,
+      allPaymentsForChart,
+    ] = await Promise.all([
+      // Revenue - current period
+      prisma.payment.aggregate({
+        where: {
+          customer: { tenantId },
+          status: 'COMPLETED',
+          createdAt: { gte: start, lte: now },
+        },
+        _sum: { amount: true },
+        _count: true,
+      }),
+      // Revenue - previous period
+      prisma.payment.aggregate({
+        where: {
+          customer: { tenantId },
+          status: 'COMPLETED',
+          createdAt: { gte: previousStart, lte: previousEnd },
+        },
+        _sum: { amount: true },
+      }),
+      // Memberships - active
+      prisma.membership.count({
+        where: { customer: { tenantId }, status: 'ACTIVE' },
+      }),
+      // Memberships - new
+      prisma.membership.count({
+        where: { customer: { tenantId }, createdAt: { gte: start, lte: now } },
+      }),
+      // Memberships - cancelled
+      prisma.membership.count({
+        where: {
+          customer: { tenantId },
+          status: 'CANCELLED',
+          cancelledAt: { gte: start, lte: now },
+        },
+      }),
+      // Memberships - previous active
+      prisma.membership.count({
+        where: {
+          customer: { tenantId },
+          status: 'ACTIVE',
+          createdAt: { lte: previousEnd },
+        },
+      }),
+      // Attendance - current period (includes bookings)
+      prisma.classInstance.findMany({
+        where: {
+          branch: { tenantId },
+          startTime: { gte: start, lte: now },
+          isCancelled: false,
+        },
+        include: {
+          bookings: {
+            where: { status: { in: ['CONFIRMED', 'COMPLETED'] } },
+            select: { id: true },
+          },
+        },
+      }),
+      // Attendance - previous period
+      prisma.classInstance.findMany({
+        where: {
+          branch: { tenantId },
+          startTime: { gte: previousStart, lte: previousEnd },
+          isCancelled: false,
+        },
+        include: {
+          bookings: {
+            where: { status: { in: ['CONFIRMED', 'COMPLETED'] } },
+            select: { id: true },
+          },
+        },
+      }),
+      // Recent payments
+      prisma.payment.findMany({
+        where: { customer: { tenantId }, status: 'COMPLETED' },
+        include: {
+          customer: { select: { firstName: true, lastName: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+      }),
+      // All payments in period for chart (single bulk query instead of 30 individual ones)
+      prisma.payment.findMany({
+        where: {
+          customer: { tenantId },
+          status: 'COMPLETED',
+          createdAt: { gte: start, lte: now },
+        },
+        select: { amount: true, createdAt: true },
+      }),
+    ]);
 
-    const previousRevenue = await prisma.payment.aggregate({
-      where: {
-        customer: { tenantId },
-        status: 'COMPLETED',
-        createdAt: { gte: previousStart, lte: previousEnd },
-      },
-      _sum: { amount: true },
-    });
-
+    // ========== COMPUTE REVENUE METRICS ==========
     const currentAmount = Number(currentRevenue._sum.amount || 0);
     const previousAmount = Number(previousRevenue._sum.amount || 0);
     const revenueChange = previousAmount > 0
       ? Math.round(((currentAmount - previousAmount) / previousAmount) * 100 * 10) / 10
       : currentAmount > 0 ? 100 : 0;
 
-    // ========== MEMBERSHIP DATA ==========
-    const activeMemberships = await prisma.membership.count({
-      where: {
-        customer: { tenantId },
-        status: 'ACTIVE',
-      },
-    });
-
-    const newMemberships = await prisma.membership.count({
-      where: {
-        customer: { tenantId },
-        createdAt: { gte: start, lte: now },
-      },
-    });
-
-    const cancelledMemberships = await prisma.membership.count({
-      where: {
-        customer: { tenantId },
-        status: 'CANCELLED',
-        cancelledAt: { gte: start, lte: now },
-      },
-    });
-
-    const previousActiveMemberships = await prisma.membership.count({
-      where: {
-        customer: { tenantId },
-        status: 'ACTIVE',
-        createdAt: { lte: previousEnd },
-      },
-    });
-
+    // ========== COMPUTE MEMBERSHIP METRICS ==========
     const membershipChange = previousActiveMemberships > 0
       ? Math.round(((activeMemberships - previousActiveMemberships) / previousActiveMemberships) * 100 * 10) / 10
       : activeMemberships > 0 ? 100 : 0;
 
-    // ========== ATTENDANCE DATA ==========
-    const classes = await prisma.classInstance.findMany({
-      where: {
-        branch: { tenantId },
-        startTime: { gte: start, lte: now },
-        isCancelled: false,
-      },
-      include: {
-        bookings: {
-          where: { status: { in: ['CONFIRMED', 'COMPLETED'] } },
-        },
-      },
-    });
-
+    // ========== COMPUTE ATTENDANCE METRICS ==========
     const totalClasses = classes.length;
     const totalAttendees = classes.reduce((sum, c) => sum + c.bookings.length, 0);
     const totalCapacity = classes.reduce((sum, c) => sum + c.capacity, 0);
     const avgUtilization = totalCapacity > 0
       ? Math.round((totalAttendees / totalCapacity) * 100)
       : 0;
-
-    // Previous period attendance
-    const previousClasses = await prisma.classInstance.findMany({
-      where: {
-        branch: { tenantId },
-        startTime: { gte: previousStart, lte: previousEnd },
-        isCancelled: false,
-      },
-      include: {
-        bookings: {
-          where: { status: { in: ['CONFIRMED', 'COMPLETED'] } },
-        },
-      },
-    });
 
     const previousTotalCapacity = previousClasses.reduce((sum, c) => sum + c.capacity, 0);
     const previousTotalAttendees = previousClasses.reduce((sum, c) => sum + c.bookings.length, 0);
@@ -162,68 +186,27 @@ export async function GET(request: NextRequest) {
       ? Math.round((avgUtilization - previousUtilization) * 10) / 10
       : avgUtilization > 0 ? avgUtilization : 0;
 
-    // ========== TOP CLASSES ==========
-    const classStats = await prisma.classInstance.groupBy({
-      by: ['name'],
-      where: {
-        branch: { tenantId },
-        startTime: { gte: start, lte: now },
-        isCancelled: false,
-      },
-      _count: { id: true },
-    });
+    // ========== TOP CLASSES (computed from already-fetched data, no extra queries) ==========
+    const classMap = new Map<string, { attendees: number; capacity: number; instances: number }>();
+    for (const cls of classes) {
+      const existing = classMap.get(cls.name) || { attendees: 0, capacity: 0, instances: 0 };
+      existing.attendees += cls.bookings.length;
+      existing.capacity += cls.capacity;
+      existing.instances += 1;
+      classMap.set(cls.name, existing);
+    }
 
-    const topClassesData = await Promise.all(
-      classStats.map(async (cls) => {
-        const instances = await prisma.classInstance.findMany({
-          where: {
-            branch: { tenantId },
-            name: cls.name,
-            startTime: { gte: start, lte: now },
-            isCancelled: false,
-          },
-          include: {
-            bookings: {
-              where: { status: { in: ['CONFIRMED', 'COMPLETED'] } },
-            },
-          },
-        });
-
-        const attendees = instances.reduce((sum, i) => sum + i.bookings.length, 0);
-        const capacity = instances.reduce((sum, i) => sum + i.capacity, 0);
-        const utilization = capacity > 0 ? Math.round((attendees / capacity) * 100) : 0;
-
-        return {
-          name: cls.name,
-          attendees,
-          utilization,
-          instances: instances.length,
-        };
-      })
-    );
-
-    const topClasses = topClassesData
+    const topClasses = Array.from(classMap.entries())
+      .map(([name, data]) => ({
+        name,
+        attendees: data.attendees,
+        utilization: data.capacity > 0 ? Math.round((data.attendees / data.capacity) * 100) : 0,
+        instances: data.instances,
+      }))
       .sort((a, b) => b.attendees - a.attendees)
       .slice(0, 5);
 
     // ========== RECENT PAYMENTS ==========
-    const recentPayments = await prisma.payment.findMany({
-      where: {
-        customer: { tenantId },
-        status: 'COMPLETED',
-      },
-      include: {
-        customer: {
-          select: {
-            firstName: true,
-            lastName: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 5,
-    });
-
     const formattedPayments = recentPayments.map((p) => ({
       id: p.id,
       customer: `${p.customer.firstName} ${p.customer.lastName}`,
@@ -232,13 +215,13 @@ export async function GET(request: NextRequest) {
       date: p.createdAt.toISOString(),
     }));
 
-    // ========== CHART DATA - Revenue by day/week ==========
-    const revenueChartData: { date: string; amount: number }[] = [];
-    const attendanceChartData: { date: string; attendees: number; capacity: number }[] = [];
-
-    // Group data by day or week depending on period
+    // ========== CHART DATA (computed from already-fetched data, no extra queries) ==========
     const groupByDays = period === 'week' ? 1 : period === 'month' ? 1 : 7;
     const numPoints = period === 'week' ? 7 : period === 'month' ? 30 : 12;
+
+    // Build chart buckets
+    const revenueChartData: { date: string; amount: number }[] = [];
+    const attendanceChartData: { date: string; attendees: number; capacity: number }[] = [];
 
     for (let i = numPoints - 1; i >= 0; i--) {
       const dayStart = new Date(now);
@@ -249,30 +232,15 @@ export async function GET(request: NextRequest) {
       dayEnd.setDate(dayEnd.getDate() + groupByDays);
       dayEnd.setHours(0, 0, 0, 0);
 
-      // Revenue for this period
-      const dayRevenue = await prisma.payment.aggregate({
-        where: {
-          customer: { tenantId },
-          status: 'COMPLETED',
-          createdAt: { gte: dayStart, lt: dayEnd },
-        },
-        _sum: { amount: true },
-      });
+      // Revenue: filter from bulk-fetched payments
+      const dayAmount = allPaymentsForChart
+        .filter((p) => p.createdAt >= dayStart && p.createdAt < dayEnd)
+        .reduce((sum, p) => sum + Number(p.amount || 0), 0);
 
-      // Attendance for this period
-      const dayClasses = await prisma.classInstance.findMany({
-        where: {
-          branch: { tenantId },
-          startTime: { gte: dayStart, lt: dayEnd },
-          isCancelled: false,
-        },
-        include: {
-          bookings: {
-            where: { status: { in: ['CONFIRMED', 'COMPLETED'] } },
-          },
-        },
-      });
-
+      // Attendance: filter from already-fetched classes
+      const dayClasses = classes.filter(
+        (c) => c.startTime >= dayStart && c.startTime < dayEnd
+      );
       const dayAttendees = dayClasses.reduce((sum, c) => sum + c.bookings.length, 0);
       const dayCapacity = dayClasses.reduce((sum, c) => sum + c.capacity, 0);
 
@@ -281,16 +249,8 @@ export async function GET(request: NextRequest) {
         month: 'short',
       });
 
-      revenueChartData.push({
-        date: dateLabel,
-        amount: Number(dayRevenue._sum.amount || 0),
-      });
-
-      attendanceChartData.push({
-        date: dateLabel,
-        attendees: dayAttendees,
-        capacity: dayCapacity,
-      });
+      revenueChartData.push({ date: dateLabel, amount: dayAmount });
+      attendanceChartData.push({ date: dateLabel, attendees: dayAttendees, capacity: dayCapacity });
     }
 
     return NextResponse.json({

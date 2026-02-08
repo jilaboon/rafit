@@ -20,53 +20,59 @@ export async function GET(request: NextRequest) {
     const checkInWindowStart = new Date();
     checkInWindowStart.setHours(checkInWindowStart.getHours() - 1);
 
-    const bookings = await prisma.booking.findMany({
-      where: {
-        status: 'CONFIRMED',
-        checkedInAt: null,
-        classInstance: {
-          branch: {
-            tenantId,
-          },
-          startTime: {
-            gte: checkInWindowStart,
-            lte: checkInWindowEnd,
-          },
-          isCancelled: false,
-        },
-      },
-      include: {
-        customer: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            phone: true,
+    // Calculate today boundaries (needed for counts)
+    const startOfDay = new Date(now);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(now);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // Run all 3 queries in parallel (was sequential)
+    const [bookings, totalPendingToday, totalCheckedInToday] = await Promise.all([
+      prisma.booking.findMany({
+        where: {
+          status: 'CONFIRMED',
+          checkedInAt: null,
+          classInstance: {
+            branch: { tenantId },
+            startTime: { gte: checkInWindowStart, lte: checkInWindowEnd },
+            isCancelled: false,
           },
         },
-        classInstance: {
-          select: {
-            id: true,
-            name: true,
-            startTime: true,
-            endTime: true,
-            branch: {
-              select: {
-                id: true,
-                name: true,
-              },
+        include: {
+          customer: {
+            select: { id: true, firstName: true, lastName: true, email: true, phone: true },
+          },
+          classInstance: {
+            select: {
+              id: true,
+              name: true,
+              startTime: true,
+              endTime: true,
+              branch: { select: { id: true, name: true } },
             },
           },
         },
-      },
-      orderBy: {
-        classInstance: {
-          startTime: 'asc',
+        orderBy: { classInstance: { startTime: 'asc' } },
+        take: limit,
+      }),
+      prisma.booking.count({
+        where: {
+          status: 'CONFIRMED',
+          checkedInAt: null,
+          classInstance: {
+            branch: { tenantId },
+            startTime: { gte: startOfDay, lte: endOfDay },
+            isCancelled: false,
+          },
         },
-      },
-      take: limit,
-    });
+      }),
+      prisma.booking.count({
+        where: {
+          checkedInAt: { gte: startOfDay, lte: endOfDay },
+          classInstance: { branch: { tenantId } },
+        },
+      }),
+    ]);
 
     // Format response
     const formattedBookings = bookings.map((booking) => ({
@@ -85,43 +91,6 @@ export async function GET(request: NextRequest) {
       },
       bookedAt: booking.bookedAt.toISOString(),
     }));
-
-    // Calculate total pending check-ins for today
-    const startOfDay = new Date(now);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(now);
-    endOfDay.setHours(23, 59, 59, 999);
-
-    const totalPendingToday = await prisma.booking.count({
-      where: {
-        status: 'CONFIRMED',
-        checkedInAt: null,
-        classInstance: {
-          branch: {
-            tenantId,
-          },
-          startTime: {
-            gte: startOfDay,
-            lte: endOfDay,
-          },
-          isCancelled: false,
-        },
-      },
-    });
-
-    const totalCheckedInToday = await prisma.booking.count({
-      where: {
-        checkedInAt: {
-          gte: startOfDay,
-          lte: endOfDay,
-        },
-        classInstance: {
-          branch: {
-            tenantId,
-          },
-        },
-      },
-    });
 
     return NextResponse.json({
       bookings: formattedBookings,
