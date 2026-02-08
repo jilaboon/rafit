@@ -4,6 +4,10 @@ import { compare } from 'bcryptjs';
 
 // Test endpoint to verify auth components work - REMOVE IN PRODUCTION
 export async function POST(request: Request) {
+  if (process.env.NODE_ENV !== 'development') {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
   try {
     const { email, password } = await request.json();
 

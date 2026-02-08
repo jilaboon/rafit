@@ -32,6 +32,41 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // CSRF Protection: Verify Origin for state-changing requests
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method)) {
+    const origin = request.headers.get('origin');
+    const host = request.headers.get('host');
+
+    if (origin && host) {
+      try {
+        const originUrl = new URL(origin);
+        const expectedHost = host.split(':')[0];
+        const originHost = originUrl.hostname;
+
+        if (originHost !== expectedHost) {
+          // Exempt webhook and auth endpoints from CSRF check
+          const csrfExemptPaths = ['/api/stripe/webhooks', '/api/auth'];
+          const isExempt = csrfExemptPaths.some(
+            (path) => pathname.startsWith(path)
+          );
+
+          if (!isExempt) {
+            return NextResponse.json(
+              { error: 'Cross-origin request blocked' },
+              { status: 403 }
+            );
+          }
+        }
+      } catch {
+        // Invalid origin URL — block the request
+        return NextResponse.json(
+          { error: 'Invalid origin' },
+          { status: 403 }
+        );
+      }
+    }
+  }
+
   // Check if path is admin-only
   const isAdminPath = adminPaths.some(
     (path) => pathname === path || pathname.startsWith(path + '/')

@@ -4,6 +4,11 @@ import Google from 'next-auth/providers/google';
 import { compare, hash } from 'bcryptjs';
 import { z } from 'zod';
 import prisma from '@/lib/db';
+import '@/lib/env'; // Validate environment variables at startup
+
+const authLog = process.env.NODE_ENV === 'development'
+  ? (...args: unknown[]) => console.log('[Auth]', ...args)
+  : (..._args: unknown[]) => {};
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -20,14 +25,14 @@ const providers: NextAuthConfig['providers'] = [
     },
     async authorize(credentials) {
       try {
-        console.log('Auth: Starting authorization');
+        authLog('Auth: Starting authorization');
         const parsed = loginSchema.safeParse(credentials);
         if (!parsed.success) {
-          console.log('Auth: Schema validation failed', parsed.error);
+          authLog('Auth: Schema validation failed', parsed.error);
           return null;
         }
 
-        console.log('Auth: Looking up user:', parsed.data.email);
+        authLog('Auth: Looking up user:', parsed.data.email);
         // Only select fields that are guaranteed to exist in DB
         // (isSuperAdmin might not exist if migration hasn't run)
         const user = await prisma.user.findUnique({
@@ -43,28 +48,28 @@ const providers: NextAuthConfig['providers'] = [
         });
 
         if (!user) {
-          console.log('Auth: User not found');
+          authLog('Auth: User not found');
           return null;
         }
 
         if (!user.passwordHash) {
-          console.log('Auth: User has no password');
+          authLog('Auth: User has no password');
           return null;
         }
 
-        console.log('Auth: Comparing password');
+        authLog('Auth: Comparing password');
         const isValid = await compare(parsed.data.password, user.passwordHash);
         if (!isValid) {
-          console.log('Auth: Password invalid');
+          authLog('Auth: Password invalid');
           return null;
         }
 
         if (user.status !== 'ACTIVE') {
-          console.log('Auth: User not active, status:', user.status);
+          authLog('Auth: User not active, status:', user.status);
           return null;
         }
 
-        console.log('Auth: Success, returning user');
+        authLog('Auth: Success, returning user');
         return {
           id: user.id,
           email: user.email,
@@ -85,7 +90,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      allowDangerousEmailAccountLinking: true,
+      allowDangerousEmailAccountLinking: false,
     })
   );
 }
@@ -94,7 +99,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   // Required for Vercel deployment - trust the host header
   trustHost: true,
   // Debug mode to see what's happening
-  debug: process.env.NODE_ENV === 'development',
+  debug: process.env.AUTH_DEBUG === 'true',
   // Note: Not using PrismaAdapter with JWT strategy + Credentials
   session: {
     strategy: 'jwt',
@@ -123,11 +128,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async jwt({ token, user, trigger, session }) {
       try {
-        console.log('JWT callback: trigger=', trigger, 'user=', !!user);
+        authLog('JWT callback: trigger=', trigger, 'user=', !!user);
 
         if (user) {
           token.id = user.id;
-          console.log('JWT: Set user id:', user.id);
+          authLog('JWT: Set user id:', user.id);
         }
 
         // Handle session updates
@@ -158,9 +163,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 token.role = impersonatedUser.role;
               }
             } catch (error) {
-              console.log('JWT: Error fetching impersonated user:', error);
+              authLog('JWT: Error fetching impersonated user:', error);
             }
-            console.log('JWT: Started impersonation of user:', session.impersonatedUserId);
+            authLog('JWT: Started impersonation of user:', session.impersonatedUserId);
           }
           // Handle impersonation stop
           if (session.stopImpersonation) {
@@ -173,30 +178,30 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               token.id = token.originalUserId;
               token.originalUserId = undefined;
             }
-            console.log('JWT: Stopped impersonation');
+            authLog('JWT: Stopped impersonation');
           }
         }
 
         // Fetch user info if not already fetched (initial login or refresh)
         if (token.id && token.isSuperAdmin === undefined) {
-          console.log('JWT: Fetching user info for:', token.id);
+          authLog('JWT: Fetching user info for:', token.id);
           try {
             const dbUser = await prisma.user.findUnique({
               where: { id: token.id as string },
               select: { isSuperAdmin: true },
             });
             token.isSuperAdmin = dbUser?.isSuperAdmin ?? false;
-            console.log('JWT: isSuperAdmin=', token.isSuperAdmin);
+            authLog('JWT: isSuperAdmin=', token.isSuperAdmin);
           } catch (error) {
             // Column might not exist in DB yet - default to false
-            console.log('JWT: Error fetching isSuperAdmin, defaulting to false:', error);
+            authLog('JWT: Error fetching isSuperAdmin, defaulting to false:', error);
             token.isSuperAdmin = false;
           }
         }
 
         // Fetch tenant info if not present and not a super admin without tenant
         if (token.id && !token.tenantId && !token.isImpersonating) {
-          console.log('JWT: Fetching tenant info for user:', token.id);
+          authLog('JWT: Fetching tenant info for user:', token.id);
           try {
             const tenantUser = await prisma.tenantUser.findFirst({
               where: {
@@ -211,16 +216,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             if (tenantUser) {
               token.tenantId = tenantUser.tenantId;
               token.role = tenantUser.role;
-              console.log('JWT: Found tenant:', tenantUser.tenantId);
+              authLog('JWT: Found tenant:', tenantUser.tenantId);
             } else {
-              console.log('JWT: No tenant found for user');
+              authLog('JWT: No tenant found for user');
             }
           } catch (error) {
-            console.log('JWT: Error fetching tenant info:', error);
+            authLog('JWT: Error fetching tenant info:', error);
           }
         }
 
-        console.log('JWT: Returning token');
+        authLog('JWT: Returning token');
         return token;
       } catch (error) {
         console.error('JWT callback error:', error);
@@ -228,7 +233,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
     },
     async session({ session, token }) {
-      console.log('Session callback: token=', !!token);
+      authLog('Session callback: token=', !!token);
       if (token && session.user) {
         session.user.id = token.id as string;
         session.user.tenantId = token.tenantId as string | undefined;
@@ -238,7 +243,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.isImpersonating = token.isImpersonating ?? false;
         session.user.impersonatedUserId = token.impersonatedUserId as string | undefined;
         session.user.originalUserId = token.originalUserId as string | undefined;
-        console.log('Session: Set user data, id=', session.user.id, 'isSuperAdmin=', session.user.isSuperAdmin);
+        authLog('Session: Set user data, id=', session.user.id, 'isSuperAdmin=', session.user.isSuperAdmin);
       }
       return session;
     },
