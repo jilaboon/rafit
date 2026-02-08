@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { StatsCard, StatsGrid } from './stats-card';
 import { Calendar, Users, CreditCard, TrendingUp } from 'lucide-react';
 
@@ -16,36 +16,28 @@ interface DashboardStats {
 }
 
 export function DashboardStatsWidget() {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: stats, isLoading } = useQuery<DashboardStats>({
+    queryKey: ['dashboard-stats'],
+    queryFn: async () => {
+      const [classesRes, revenueRes] = await Promise.all([
+        fetch('/api/dashboard/today-classes'),
+        fetch('/api/dashboard/revenue?period=month'),
+      ]);
 
-  useEffect(() => {
-    async function fetchStats() {
-      try {
-        // Fetch multiple endpoints in parallel
-        const [classesRes, revenueRes] = await Promise.all([
-          fetch('/api/dashboard/today-classes'),
-          fetch('/api/dashboard/revenue?period=month'),
-        ]);
+      if (!classesRes.ok || !revenueRes.ok) throw new Error('Failed to fetch dashboard stats');
 
-        const classesData = await classesRes.json();
-        const revenueData = await revenueRes.json();
+      const classesData = await classesRes.json();
+      const revenueData = await revenueRes.json();
 
-        setStats({
-          classesToday: classesData.summary?.totalClasses || 0,
-          bookingsToday: classesData.summary?.totalBookings || 0,
-          revenueMonth: revenueData.current?.amount || 0,
-          activeMembers: revenueData.memberships?.new || 0,
-          revenueChange: revenueData.percentageChange || 0,
-        });
-      } catch (error) {
-        console.error('Failed to fetch dashboard stats:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    fetchStats();
-  }, []);
+      return {
+        classesToday: classesData.summary?.totalClasses || 0,
+        bookingsToday: classesData.summary?.totalBookings || 0,
+        revenueMonth: revenueData.current?.amount || 0,
+        activeMembers: revenueData.memberships?.new || 0,
+        revenueChange: revenueData.percentageChange || 0,
+      };
+    },
+  });
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('he-IL', {

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,105 +43,71 @@ interface Attendee {
 }
 
 export default function CheckinPage() {
-  const [classes, setClasses] = useState<ClassInfo[]>([]);
+  const queryClient = useQueryClient();
   const [selectedClassId, setSelectedClassId] = useState<string>('');
-  const [currentClass, setCurrentClass] = useState<{
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Fetch today's classes
+  const { data: classesData, isLoading } = useQuery<{ classes: ClassInfo[] }>({
+    queryKey: ['checkin-classes'],
+    queryFn: async () => {
+      const response = await fetch('/api/classes/today');
+      const data = await response.json();
+      if (data.classes?.length > 0 && !selectedClassId) {
+        const now = new Date();
+        const classWithPending = data.classes.find(
+          (c: ClassInfo) => c.bookings.pending > 0 && new Date(c.startTime) <= now
+        );
+        setSelectedClassId(classWithPending?.id || data.classes[0].id);
+      }
+      return data;
+    },
+  });
+
+  const classes = classesData?.classes || [];
+
+  // Fetch attendees when class is selected
+  const { data: currentClass, isLoading: isLoadingAttendees } = useQuery<{
     class: ClassInfo;
     attendees: Attendee[];
     stats: { total: number; checkedIn: number; pending: number };
-  } | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingAttendees, setIsLoadingAttendees] = useState(false);
-  const [checkingIn, setCheckingIn] = useState<string | null>(null);
+  }>({
+    queryKey: ['checkin-bookings', { classId: selectedClassId }],
+    queryFn: async () => {
+      const response = await fetch(`/api/classes/${selectedClassId}/attendees`);
+      const data = await response.json();
+      return {
+        class: data.class,
+        attendees: data.attendees,
+        stats: data.stats,
+      };
+    },
+    enabled: !!selectedClassId,
+  });
 
-  // Fetch today's classes
-  useEffect(() => {
-    async function fetchClasses() {
-      try {
-        const response = await fetch('/api/classes/today');
-        const data = await response.json();
-        if (data.classes) {
-          setClasses(data.classes);
-          // Auto-select first class with pending check-ins or closest to current time
-          if (data.classes.length > 0) {
-            const now = new Date();
-            const classWithPending = data.classes.find(
-              (c: ClassInfo) => c.bookings.pending > 0 && new Date(c.startTime) <= now
-            );
-            setSelectedClassId(classWithPending?.id || data.classes[0].id);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching classes:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    fetchClasses();
-  }, []);
-
-  // Fetch attendees when class is selected
-  useEffect(() => {
-    async function fetchAttendees() {
-      if (!selectedClassId) return;
-
-      setIsLoadingAttendees(true);
-      try {
-        const response = await fetch(`/api/classes/${selectedClassId}/attendees`);
-        const data = await response.json();
-        if (data.class && data.attendees) {
-          setCurrentClass({
-            class: data.class,
-            attendees: data.attendees,
-            stats: data.stats,
-          });
-        }
-      } catch (error) {
-        console.error('Error fetching attendees:', error);
-      } finally {
-        setIsLoadingAttendees(false);
-      }
-    }
-    fetchAttendees();
-  }, [selectedClassId]);
-
-  const handleCheckin = async (bookingId: string) => {
-    setCheckingIn(bookingId);
-    try {
+  const checkinMutation = useMutation({
+    mutationFn: async (bookingId: string) => {
       const response = await fetch(`/api/bookings/${bookingId}/checkin`, {
         method: 'POST',
       });
       const data = await response.json();
+      if (!data.success) throw new Error(data.error || 'שגיאה בצ\'ק-אין');
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['checkin-bookings', { classId: selectedClassId }] });
+      queryClient.invalidateQueries({ queryKey: ['checkin-classes'] });
+    },
+    onError: (err: Error) => {
+      alert(err.message || 'שגיאה בצ\'ק-אין');
+    },
+  });
 
-      if (data.success) {
-        // Update local state
-        setCurrentClass((prev) => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            attendees: prev.attendees.map((a) =>
-              a.bookingId === bookingId
-                ? { ...a, checkedIn: true, checkedInAt: new Date().toISOString() }
-                : a
-            ),
-            stats: {
-              ...prev.stats,
-              checkedIn: prev.stats.checkedIn + 1,
-              pending: prev.stats.pending - 1,
-            },
-          };
-        });
-      } else {
-        alert(data.error || 'שגיאה בצ\'ק-אין');
-      }
-    } catch (error) {
-      console.error('Error checking in:', error);
-      alert('שגיאה בצ\'ק-אין');
-    } finally {
-      setCheckingIn(null);
-    }
+  const handleCheckin = (bookingId: string) => {
+    checkinMutation.mutate(bookingId);
   };
+
+  const checkingIn = checkinMutation.isPending ? checkinMutation.variables : null;
 
   const filteredAttendees = currentClass?.attendees.filter(
     (a) =>

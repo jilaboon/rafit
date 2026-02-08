@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -84,8 +85,7 @@ const initialFormData: BranchFormData = {
 };
 
 export default function BranchesPage() {
-  const [branches, setBranches] = useState<Branch[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -95,29 +95,17 @@ export default function BranchesPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
   const [formData, setFormData] = useState<BranchFormData>(initialFormData);
-  const [isSaving, setIsSaving] = useState(false);
 
-  const fetchBranches = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
+  const { data, isLoading } = useQuery<{ branches: Branch[] }>({
+    queryKey: ['branches'],
+    queryFn: async () => {
       const response = await fetch('/api/branches?includeInactive=true');
-      if (!response.ok) {
-        throw new Error('Failed to fetch branches');
-      }
-      const data = await response.json();
-      setBranches(data.branches);
-    } catch (err) {
-      setError('שגיאה בטעינת הסניפים');
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+      if (!response.ok) throw new Error('Failed to fetch branches');
+      return response.json();
+    },
+  });
 
-  useEffect(() => {
-    fetchBranches();
-  }, [fetchBranches]);
+  const branches = data?.branches ?? [];
 
   const generateSlug = (name: string) => {
     return name
@@ -135,101 +123,101 @@ export default function BranchesPage() {
     }));
   };
 
-  const handleCreate = async () => {
-    try {
-      setIsSaving(true);
-      setError(null);
-
+  const createMutation = useMutation({
+    mutationFn: async (branchData: BranchFormData) => {
       const response = await fetch('/api/branches', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(branchData),
       });
-
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create branch');
-      }
-
+      if (!response.ok) throw new Error(data.error || 'Failed to create branch');
+      return data;
+    },
+    onSuccess: () => {
       setSuccess('הסניף נוצר בהצלחה');
       setIsCreateDialogOpen(false);
       setFormData(initialFormData);
-      fetchBranches();
+      queryClient.invalidateQueries({ queryKey: ['branches'] });
       setTimeout(() => setSuccess(null), 3000);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'שגיאה ביצירת הסניף');
-    } finally {
-      setIsSaving(false);
-    }
-  };
+    },
+    onError: (err: Error) => {
+      setError(err.message || 'שגיאה ביצירת הסניף');
+    },
+  });
 
-  const handleEdit = async () => {
-    if (!selectedBranch) return;
-
-    try {
-      setIsSaving(true);
-      setError(null);
-
-      const response = await fetch(`/api/branches/${selectedBranch.id}`, {
+  const editMutation = useMutation({
+    mutationFn: async ({ branchId, branchData }: { branchId: string; branchData: Partial<BranchFormData> }) => {
+      const response = await fetch(`/api/branches/${branchId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: formData.name,
-          address: formData.address || null,
-          city: formData.city || null,
-          phone: formData.phone || null,
-          email: formData.email || null,
-          isActive: formData.isActive,
-        }),
+        body: JSON.stringify(branchData),
       });
-
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to update branch');
-      }
-
+      if (!response.ok) throw new Error(data.error || 'Failed to update branch');
+      return data;
+    },
+    onSuccess: () => {
       setSuccess('הסניף עודכן בהצלחה');
       setIsEditDialogOpen(false);
       setSelectedBranch(null);
       setFormData(initialFormData);
-      fetchBranches();
+      queryClient.invalidateQueries({ queryKey: ['branches'] });
       setTimeout(() => setSuccess(null), 3000);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'שגיאה בעדכון הסניף');
-    } finally {
-      setIsSaving(false);
-    }
-  };
+    },
+    onError: (err: Error) => {
+      setError(err.message || 'שגיאה בעדכון הסניף');
+    },
+  });
 
-  const handleDelete = async () => {
-    if (!selectedBranch) return;
-
-    try {
-      setIsSaving(true);
-      setError(null);
-
-      const response = await fetch(`/api/branches/${selectedBranch.id}`, {
+  const deleteMutation = useMutation({
+    mutationFn: async (branchId: string) => {
+      const response = await fetch(`/api/branches/${branchId}`, {
         method: 'DELETE',
       });
-
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to delete branch');
-      }
-
+      if (!response.ok) throw new Error(data.error || 'Failed to delete branch');
+      return data;
+    },
+    onSuccess: () => {
       setSuccess('הסניף נמחק בהצלחה');
       setIsDeleteDialogOpen(false);
       setSelectedBranch(null);
-      fetchBranches();
+      queryClient.invalidateQueries({ queryKey: ['branches'] });
       setTimeout(() => setSuccess(null), 3000);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'שגיאה במחיקת הסניף');
-    } finally {
-      setIsSaving(false);
-    }
+    },
+    onError: (err: Error) => {
+      setError(err.message || 'שגיאה במחיקת הסניף');
+    },
+  });
+
+  const isSaving = createMutation.isPending || editMutation.isPending || deleteMutation.isPending;
+
+  const handleCreate = () => {
+    setError(null);
+    createMutation.mutate(formData);
+  };
+
+  const handleEdit = () => {
+    if (!selectedBranch) return;
+    setError(null);
+    editMutation.mutate({
+      branchId: selectedBranch.id,
+      branchData: {
+        name: formData.name,
+        address: formData.address || null as unknown as string,
+        city: formData.city || null as unknown as string,
+        phone: formData.phone || null as unknown as string,
+        email: formData.email || null as unknown as string,
+        isActive: formData.isActive,
+      },
+    });
+  };
+
+  const handleDelete = () => {
+    if (!selectedBranch) return;
+    setError(null);
+    deleteMutation.mutate(selectedBranch.id);
   };
 
   const openEditDialog = (branch: Branch) => {

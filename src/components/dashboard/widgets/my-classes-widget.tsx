@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -31,25 +31,16 @@ export function MyClassesWidget({
   showViewAll = true,
   daysAhead = 7,
 }: MyClassesWidgetProps) {
-  const [classes, setClasses] = useState<MyClass[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data, isLoading } = useQuery<{ classes: MyClass[] }>({
+    queryKey: ['dashboard-my-classes', limit, daysAhead],
+    queryFn: async () => {
+      const response = await fetch(`/api/dashboard/my-classes?limit=${limit}&days=${daysAhead}`);
+      if (!response.ok) throw new Error('Failed to fetch my classes');
+      return response.json();
+    },
+  });
 
-  useEffect(() => {
-    async function fetchClasses() {
-      try {
-        const response = await fetch(`/api/dashboard/my-classes?limit=${limit}&days=${daysAhead}`);
-        const data = await response.json();
-        if (response.ok) {
-          setClasses(data.classes);
-        }
-      } catch (error) {
-        console.error('Failed to fetch my classes:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    fetchClasses();
-  }, [limit, daysAhead]);
+  const classes = data?.classes ?? [];
 
   const formatTime = (dateStr: string) => {
     return new Date(dateStr).toLocaleTimeString('he-IL', {

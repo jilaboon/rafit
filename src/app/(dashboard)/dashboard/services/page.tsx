@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -70,12 +71,9 @@ const defaultColors = [
 ];
 
 export default function ServicesPage() {
-  const [services, setServices] = useState<Service[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [showNewDialog, setShowNewDialog] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
   const [deleteService, setDeleteService] = useState<Service | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [togglingService, setTogglingService] = useState<string | null>(null);
 
   const [newService, setNewService] = useState({
@@ -89,113 +87,100 @@ export default function ServicesPage() {
     color: defaultColors[0],
   });
 
-  const fetchServices = useCallback(async () => {
-    setIsLoading(true);
-    try {
+  const { data, isLoading } = useQuery<{ services: Service[] }>({
+    queryKey: ['services'],
+    queryFn: async () => {
       const response = await fetch('/api/services?includeInactive=true');
-      const data = await response.json();
-      if (data.services) {
-        setServices(data.services);
-      }
-    } catch (error) {
-      console.error('Error fetching services:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+      if (!response.ok) throw new Error('Failed to fetch services');
+      return response.json();
+    },
+  });
 
-  useEffect(() => {
-    fetchServices();
-  }, [fetchServices]);
+  const services = data?.services ?? [];
 
-  const handleCreateService = async () => {
-    if (!newService.name) return;
-
-    setIsCreating(true);
-    try {
+  const createMutation = useMutation({
+    mutationFn: async (serviceData: typeof newService) => {
       const response = await fetch('/api/services', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newService),
+        body: JSON.stringify(serviceData),
       });
-
       const data = await response.json();
+      if (!data.success) throw new Error(data.error || 'שגיאה ביצירת שירות');
+      return data;
+    },
+    onSuccess: () => {
+      setShowNewDialog(false);
+      setNewService({
+        name: '',
+        description: '',
+        type: 'GROUP_CLASS',
+        duration: 60,
+        defaultCapacity: 20,
+        price: 0,
+        creditCost: 1,
+        color: defaultColors[Math.floor(Math.random() * defaultColors.length)],
+      });
+      queryClient.invalidateQueries({ queryKey: ['services'] });
+    },
+    onError: (error: Error) => {
+      alert(error.message);
+    },
+  });
 
-      if (data.success) {
-        setShowNewDialog(false);
-        setNewService({
-          name: '',
-          description: '',
-          type: 'GROUP_CLASS',
-          duration: 60,
-          defaultCapacity: 20,
-          price: 0,
-          creditCost: 1,
-          color: defaultColors[Math.floor(Math.random() * defaultColors.length)],
-        });
-        fetchServices();
-      } else {
-        alert(data.error || 'שגיאה ביצירת שירות');
-      }
-    } catch (error) {
-      console.error('Error creating service:', error);
-      alert('שגיאה ביצירת שירות');
-    } finally {
-      setIsCreating(false);
-    }
-  };
-
-  const handleToggleActive = async (service: Service) => {
-    setTogglingService(service.id);
-    try {
-      const response = await fetch(`/api/services/${service.id}`, {
+  const toggleActiveMutation = useMutation({
+    mutationFn: async ({ serviceId, isActive }: { serviceId: string; isActive: boolean }) => {
+      const response = await fetch(`/api/services/${serviceId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isActive: !service.isActive }),
+        body: JSON.stringify({ isActive }),
       });
-
       const data = await response.json();
-
-      if (data.success) {
-        setServices((prev) =>
-          prev.map((s) =>
-            s.id === service.id ? { ...s, isActive: !s.isActive } : s
-          )
-        );
-      } else {
-        alert(data.error || 'שגיאה בעדכון שירות');
-      }
-    } catch (error) {
-      console.error('Error toggling service:', error);
-      alert('שגיאה בעדכון שירות');
-    } finally {
+      if (!data.success) throw new Error(data.error || 'שגיאה בעדכון שירות');
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['services'] });
+    },
+    onError: (error: Error) => {
+      alert(error.message);
+    },
+    onSettled: () => {
       setTogglingService(null);
-    }
-  };
+    },
+  });
 
-  const handleDeleteService = async () => {
-    if (!deleteService) return;
-
-    setIsDeleting(true);
-    try {
-      const response = await fetch(`/api/services/${deleteService.id}`, {
+  const deleteMutation = useMutation({
+    mutationFn: async (serviceId: string) => {
+      const response = await fetch(`/api/services/${serviceId}`, {
         method: 'DELETE',
       });
-
       const data = await response.json();
+      if (!data.success) throw new Error(data.error || 'שגיאה במחיקת שירות');
+      return data;
+    },
+    onSuccess: () => {
+      setDeleteService(null);
+      queryClient.invalidateQueries({ queryKey: ['services'] });
+    },
+    onError: (error: Error) => {
+      alert(error.message);
+    },
+  });
 
-      if (data.success) {
-        setDeleteService(null);
-        fetchServices();
-      } else {
-        alert(data.error || 'שגיאה במחיקת שירות');
-      }
-    } catch (error) {
-      console.error('Error deleting service:', error);
-      alert('שגיאה במחיקת שירות');
-    } finally {
-      setIsDeleting(false);
-    }
+  const handleCreateService = () => {
+    if (!newService.name) return;
+    createMutation.mutate(newService);
+  };
+
+  const handleToggleActive = (service: Service) => {
+    setTogglingService(service.id);
+    toggleActiveMutation.mutate({ serviceId: service.id, isActive: !service.isActive });
+  };
+
+  const handleDeleteService = () => {
+    if (!deleteService) return;
+    deleteMutation.mutate(deleteService.id);
   };
 
   const activeServices = services.filter((s) => s.isActive);
@@ -543,8 +528,8 @@ export default function ServicesPage() {
             <Button variant="outline" onClick={() => setShowNewDialog(false)}>
               ביטול
             </Button>
-            <Button onClick={handleCreateService} disabled={isCreating}>
-              {isCreating && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
+            <Button onClick={handleCreateService} disabled={createMutation.isPending}>
+              {createMutation.isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
               צור שירות
             </Button>
           </DialogFooter>
@@ -566,8 +551,8 @@ export default function ServicesPage() {
             <Button variant="outline" onClick={() => setDeleteService(null)}>
               ביטול
             </Button>
-            <Button variant="destructive" onClick={handleDeleteService} disabled={isDeleting}>
-              {isDeleting && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
+            <Button variant="destructive" onClick={handleDeleteService} disabled={deleteMutation.isPending}>
+              {deleteMutation.isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
               מחק
             </Button>
           </DialogFooter>

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -70,15 +71,7 @@ const typeLabels: Record<string, string> = {
 };
 
 export default function MembershipsPage() {
-  const [memberships, setMemberships] = useState<Membership[]>([]);
-  const [plans, setPlans] = useState<MembershipPlan[]>([]);
-  const [stats, setStats] = useState({
-    active: 0,
-    paused: 0,
-    expired: 0,
-    totalRevenue: 0,
-  });
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
@@ -92,86 +85,86 @@ export default function MembershipsPage() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  const fetchData = useCallback(async () => {
-    setIsLoading(true);
-    try {
+  const { data: membershipsData, isLoading: membershipsLoading } = useQuery<{
+    memberships: Membership[];
+    stats: { active: number; paused: number; expired: number; totalRevenue: number };
+  }>({
+    queryKey: ['memberships', { search: debouncedSearch, status: statusFilter }],
+    queryFn: async () => {
       const params = new URLSearchParams();
       if (debouncedSearch) params.set('search', debouncedSearch);
       if (statusFilter) params.set('status', statusFilter);
+      const response = await fetch(`/api/memberships?${params}`);
+      if (!response.ok) throw new Error('Failed to fetch memberships');
+      return response.json();
+    },
+  });
 
-      const [membershipsRes, plansRes] = await Promise.all([
-        fetch(`/api/memberships?${params}`),
-        fetch('/api/membership-plans'),
-      ]);
+  const { data: plansData, isLoading: plansLoading } = useQuery<{ plans: MembershipPlan[] }>({
+    queryKey: ['membership-plans'],
+    queryFn: async () => {
+      const response = await fetch('/api/membership-plans');
+      if (!response.ok) throw new Error('Failed to fetch plans');
+      return response.json();
+    },
+  });
 
-      const membershipsData = await membershipsRes.json();
-      const plansData = await plansRes.json();
+  const memberships = membershipsData?.memberships ?? [];
+  const stats = membershipsData?.stats ?? { active: 0, paused: 0, expired: 0, totalRevenue: 0 };
+  const plans = plansData?.plans ?? [];
+  const isLoading = membershipsLoading || plansLoading;
 
-      if (membershipsData.memberships) {
-        setMemberships(membershipsData.memberships);
-        setStats(membershipsData.stats);
-      }
-
-      if (plansData.plans) {
-        setPlans(plansData.plans);
-      }
-    } catch (error) {
-      console.error('Error fetching data:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [debouncedSearch, statusFilter]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  const handleUpdateStatus = async (membershipId: string, newStatus: string) => {
-    setUpdatingMembership(membershipId);
-    try {
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ membershipId, newStatus }: { membershipId: string; newStatus: string }) => {
       const response = await fetch(`/api/memberships/${membershipId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       });
-
       const data = await response.json();
-
-      if (data.success) {
-        fetchData();
-      } else {
-        alert(data.error || 'שגיאה בעדכון מנוי');
-      }
-    } catch (error) {
-      console.error('Error updating membership:', error);
-      alert('שגיאה בעדכון מנוי');
-    } finally {
+      if (!data.success) throw new Error(data.error || 'שגיאה בעדכון מנוי');
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['memberships'] });
+    },
+    onError: (error: Error) => {
+      alert(error.message);
+    },
+    onSettled: () => {
       setUpdatingMembership(null);
-    }
-  };
+    },
+  });
 
-  const handleCancelMembership = async (membershipId: string) => {
-    if (!confirm('האם אתה בטוח שברצונך לבטל את המנוי?')) return;
-
-    setUpdatingMembership(membershipId);
-    try {
+  const cancelMutation = useMutation({
+    mutationFn: async (membershipId: string) => {
       const response = await fetch(`/api/memberships/${membershipId}`, {
         method: 'DELETE',
       });
-
       const data = await response.json();
-
-      if (data.success) {
-        fetchData();
-      } else {
-        alert(data.error || 'שגיאה בביטול מנוי');
-      }
-    } catch (error) {
-      console.error('Error cancelling membership:', error);
-      alert('שגיאה בביטול מנוי');
-    } finally {
+      if (!data.success) throw new Error(data.error || 'שגיאה בביטול מנוי');
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['memberships'] });
+    },
+    onError: (error: Error) => {
+      alert(error.message);
+    },
+    onSettled: () => {
       setUpdatingMembership(null);
-    }
+    },
+  });
+
+  const handleUpdateStatus = (membershipId: string, newStatus: string) => {
+    setUpdatingMembership(membershipId);
+    updateStatusMutation.mutate({ membershipId, newStatus });
+  };
+
+  const handleCancelMembership = (membershipId: string) => {
+    if (!confirm('האם אתה בטוח שברצונך לבטל את המנוי?')) return;
+    setUpdatingMembership(membershipId);
+    cancelMutation.mutate(membershipId);
   };
 
   return (

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -66,15 +67,11 @@ const statusLabels: Record<string, { label: string; color: string }> = {
 };
 
 export default function CustomersPage() {
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [total, setTotal] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [showNewDialog, setShowNewDialog] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
   const [deleteCustomer, setDeleteCustomer] = useState<Customer | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   // New customer form
   const [newCustomer, setNewCustomer] = useState({
@@ -92,83 +89,69 @@ export default function CustomersPage() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  const fetchCustomers = useCallback(async () => {
-    setIsLoading(true);
-    try {
+  const { data, isLoading } = useQuery<{ customers: Customer[]; total: number }>({
+    queryKey: ['customers', { search: debouncedSearch }],
+    queryFn: async () => {
       const params = new URLSearchParams();
       if (debouncedSearch) params.set('search', debouncedSearch);
-
       const response = await fetch(`/api/customers?${params}`);
-      const data = await response.json();
+      if (!response.ok) throw new Error('Failed to fetch customers');
+      return response.json();
+    },
+  });
 
-      if (data.customers) {
-        setCustomers(data.customers);
-        setTotal(data.total);
-      }
-    } catch (error) {
-      console.error('Error fetching customers:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [debouncedSearch]);
+  const customers = data?.customers ?? [];
+  const total = data?.total ?? 0;
 
-  useEffect(() => {
-    fetchCustomers();
-  }, [fetchCustomers]);
-
-  const handleCreateCustomer = async () => {
-    if (!newCustomer.firstName || !newCustomer.lastName || !newCustomer.email) {
-      return;
-    }
-
-    setIsCreating(true);
-    try {
+  const createMutation = useMutation({
+    mutationFn: async (customerData: typeof newCustomer) => {
       const response = await fetch('/api/customers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newCustomer),
+        body: JSON.stringify(customerData),
       });
-
       const data = await response.json();
+      if (!data.success) throw new Error(data.error || 'שגיאה ביצירת לקוח');
+      return data;
+    },
+    onSuccess: () => {
+      setShowNewDialog(false);
+      setNewCustomer({ firstName: '', lastName: '', email: '', phone: '' });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+    },
+    onError: (error: Error) => {
+      alert(error.message);
+    },
+  });
 
-      if (data.success) {
-        setShowNewDialog(false);
-        setNewCustomer({ firstName: '', lastName: '', email: '', phone: '' });
-        fetchCustomers();
-      } else {
-        alert(data.error || 'שגיאה ביצירת לקוח');
-      }
-    } catch (error) {
-      console.error('Error creating customer:', error);
-      alert('שגיאה ביצירת לקוח');
-    } finally {
-      setIsCreating(false);
-    }
-  };
-
-  const handleDeleteCustomer = async () => {
-    if (!deleteCustomer) return;
-
-    setIsDeleting(true);
-    try {
-      const response = await fetch(`/api/customers/${deleteCustomer.id}`, {
+  const deleteMutation = useMutation({
+    mutationFn: async (customerId: string) => {
+      const response = await fetch(`/api/customers/${customerId}`, {
         method: 'DELETE',
       });
-
       const data = await response.json();
+      if (!data.success) throw new Error(data.error || 'שגיאה במחיקת לקוח');
+      return data;
+    },
+    onSuccess: () => {
+      setDeleteCustomer(null);
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+    },
+    onError: (error: Error) => {
+      alert(error.message);
+    },
+  });
 
-      if (data.success) {
-        setDeleteCustomer(null);
-        fetchCustomers();
-      } else {
-        alert(data.error || 'שגיאה במחיקת לקוח');
-      }
-    } catch (error) {
-      console.error('Error deleting customer:', error);
-      alert('שגיאה במחיקת לקוח');
-    } finally {
-      setIsDeleting(false);
+  const handleCreateCustomer = () => {
+    if (!newCustomer.firstName || !newCustomer.lastName || !newCustomer.email) {
+      return;
     }
+    createMutation.mutate(newCustomer);
+  };
+
+  const handleDeleteCustomer = () => {
+    if (!deleteCustomer) return;
+    deleteMutation.mutate(deleteCustomer.id);
   };
 
   const stats = {
@@ -465,8 +448,8 @@ export default function CustomersPage() {
             <Button variant="outline" onClick={() => setShowNewDialog(false)}>
               ביטול
             </Button>
-            <Button onClick={handleCreateCustomer} disabled={isCreating}>
-              {isCreating && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
+            <Button onClick={handleCreateCustomer} disabled={createMutation.isPending}>
+              {createMutation.isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
               צור לקוח
             </Button>
           </DialogFooter>
@@ -489,8 +472,8 @@ export default function CustomersPage() {
             <Button variant="outline" onClick={() => setDeleteCustomer(null)}>
               ביטול
             </Button>
-            <Button variant="destructive" onClick={handleDeleteCustomer} disabled={isDeleting}>
-              {isDeleting && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
+            <Button variant="destructive" onClick={handleDeleteCustomer} disabled={deleteMutation.isPending}>
+              {deleteMutation.isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
               מחק
             </Button>
           </DialogFooter>

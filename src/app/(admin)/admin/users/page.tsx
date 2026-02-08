@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -52,38 +53,27 @@ const statusColors: Record<string, string> = {
 export default function UsersPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [users, setUsers] = useState<User[]>([]);
-  const [pagination, setPagination] = useState<PaginationInfo | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState(searchParams.get('search') || '');
+  const [activeSearch, setActiveSearch] = useState(searchParams.get('search') || '');
 
-  const fetchUsers = async (searchQuery: string = '') => {
-    setIsLoading(true);
-    try {
+  const { data, isLoading } = useQuery<{ users: User[]; pagination: PaginationInfo }>({
+    queryKey: ['admin-users', { search: activeSearch }],
+    queryFn: async () => {
       const params = new URLSearchParams();
-      if (searchQuery) params.set('search', searchQuery);
-
+      if (activeSearch) params.set('search', activeSearch);
       const response = await fetch(`/api/admin/users?${params}`);
-      const data = await response.json();
+      const result = await response.json();
+      if (!response.ok) throw new Error('Failed to fetch users');
+      return { users: result.users, pagination: result.pagination };
+    },
+  });
 
-      if (response.ok) {
-        setUsers(data.users);
-        setPagination(data.pagination);
-      }
-    } catch (error) {
-      console.error('Failed to fetch users:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchUsers(search);
-  }, []);
+  const users = data?.users || [];
+  const pagination = data?.pagination || null;
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchUsers(search);
+    setActiveSearch(search);
     router.push(`/admin/users?search=${encodeURIComponent(search)}`);
   };
 

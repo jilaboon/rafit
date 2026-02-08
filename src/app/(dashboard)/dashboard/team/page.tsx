@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { UserRole } from '@prisma/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -60,50 +61,46 @@ interface TeamMember {
 }
 
 export default function TeamPage() {
+  const queryClient = useQueryClient();
   const { role, can, user } = usePermissions();
-  const [members, setMembers] = useState<TeamMember[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [staffProfileDialogOpen, setStaffProfileDialogOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
 
-  const fetchMembers = async () => {
-    setIsLoading(true);
-    try {
+  const { data, isLoading } = useQuery<{ users: TeamMember[] }>({
+    queryKey: ['team-members'],
+    queryFn: async () => {
       const response = await fetch('/api/tenants/users');
-      const data = await response.json();
-      if (response.ok) {
-        setMembers(data.users);
-      }
-    } catch (error) {
-      console.error('Failed to fetch team members:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      if (!response.ok) throw new Error('Failed to fetch team members');
+      return response.json();
+    },
+  });
 
-  useEffect(() => {
-    fetchMembers();
-  }, []);
+  const members = data?.users ?? [];
 
-  const handleRemoveMember = async (member: TeamMember) => {
-    if (!confirm(`האם אתה בטוח שברצונך להסיר את ${member.name} מהצוות?`)) return;
-
-    try {
-      const response = await fetch(`/api/tenants/users/${member.id}`, {
+  const removeMutation = useMutation({
+    mutationFn: async (memberId: string) => {
+      const response = await fetch(`/api/tenants/users/${memberId}`, {
         method: 'DELETE',
       });
-
-      if (response.ok) {
-        setMembers(members.filter((m) => m.id !== member.id));
-      } else {
+      if (!response.ok) {
         const data = await response.json();
-        alert(data.error || 'Failed to remove member');
+        throw new Error(data.error || 'Failed to remove member');
       }
-    } catch (error) {
-      console.error('Failed to remove member:', error);
-    }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['team-members'] });
+    },
+    onError: (error: Error) => {
+      alert(error.message);
+    },
+  });
+
+  const handleRemoveMember = (member: TeamMember) => {
+    if (!confirm(`האם אתה בטוח שברצונך להסיר את ${member.name} מהצוות?`)) return;
+    removeMutation.mutate(member.id);
   };
 
   const handleEditRole = (member: TeamMember) => {
@@ -254,7 +251,7 @@ export default function TeamPage() {
         onOpenChange={setInviteDialogOpen}
         assignableRoles={assignableRoles}
         onSuccess={() => {
-          fetchMembers();
+          queryClient.invalidateQueries({ queryKey: ['team-members'] });
           setInviteDialogOpen(false);
         }}
       />
@@ -268,7 +265,7 @@ export default function TeamPage() {
           assignableRoles={assignableRoles}
           currentUserRole={role as UserRole}
           onSuccess={() => {
-            fetchMembers();
+            queryClient.invalidateQueries({ queryKey: ['team-members'] });
             setEditDialogOpen(false);
             setSelectedMember(null);
           }}
@@ -282,7 +279,7 @@ export default function TeamPage() {
           onOpenChange={setStaffProfileDialogOpen}
           member={selectedMember}
           onSuccess={() => {
-            fetchMembers();
+            queryClient.invalidateQueries({ queryKey: ['team-members'] });
             setStaffProfileDialogOpen(false);
             setSelectedMember(null);
           }}

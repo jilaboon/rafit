@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Input } from '@/components/ui/input';
 import { TenantTable } from '@/components/admin/tenant-table';
 import { CreateTenantDialog } from '@/components/admin/create-tenant-dialog';
@@ -29,44 +30,34 @@ interface PaginationInfo {
 
 export default function TenantsPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const searchParams = useSearchParams();
-  const [tenants, setTenants] = useState<Tenant[]>([]);
-  const [pagination, setPagination] = useState<PaginationInfo | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState(searchParams.get('search') || '');
+  const [activeSearch, setActiveSearch] = useState(searchParams.get('search') || '');
 
-  const fetchTenants = async (searchQuery: string = '') => {
-    setIsLoading(true);
-    try {
+  const { data, isLoading } = useQuery<{ tenants: Tenant[]; pagination: PaginationInfo }>({
+    queryKey: ['admin-tenants', { search: activeSearch }],
+    queryFn: async () => {
       const params = new URLSearchParams();
-      if (searchQuery) params.set('search', searchQuery);
-
+      if (activeSearch) params.set('search', activeSearch);
       const response = await fetch(`/api/admin/tenants?${params}`);
-      const data = await response.json();
+      const result = await response.json();
+      if (!response.ok) throw new Error('Failed to fetch tenants');
+      return { tenants: result.tenants, pagination: result.pagination };
+    },
+  });
 
-      if (response.ok) {
-        setTenants(data.tenants);
-        setPagination(data.pagination);
-      }
-    } catch (error) {
-      console.error('Failed to fetch tenants:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchTenants(search);
-  }, []);
+  const tenants = data?.tenants || [];
+  const pagination = data?.pagination || null;
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchTenants(search);
+    setActiveSearch(search);
     router.push(`/admin/tenants?search=${encodeURIComponent(search)}`);
   };
 
   const handleDelete = (id: string) => {
-    setTenants(tenants.filter((t) => t.id !== id));
+    queryClient.invalidateQueries({ queryKey: ['admin-tenants'] });
   };
 
   return (
@@ -78,7 +69,7 @@ export default function TenantsPage() {
             ניהול כל העסקים בפלטפורמה
           </p>
         </div>
-        <CreateTenantDialog onSuccess={() => fetchTenants(search)} />
+        <CreateTenantDialog onSuccess={() => queryClient.invalidateQueries({ queryKey: ['admin-tenants'] })} />
       </div>
 
       {/* Search */}

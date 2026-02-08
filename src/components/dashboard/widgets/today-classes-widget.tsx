@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -32,25 +32,16 @@ export function TodayClassesWidget({
   showViewAll = true,
   compact = false,
 }: TodayClassesWidgetProps) {
-  const [classes, setClasses] = useState<ClassInstance[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data, isLoading } = useQuery<{ classes: ClassInstance[] }>({
+    queryKey: ['dashboard-today-classes', limit],
+    queryFn: async () => {
+      const response = await fetch(`/api/dashboard/today-classes?limit=${limit}`);
+      if (!response.ok) throw new Error('Failed to fetch today classes');
+      return response.json();
+    },
+  });
 
-  useEffect(() => {
-    async function fetchClasses() {
-      try {
-        const response = await fetch(`/api/dashboard/today-classes?limit=${limit}`);
-        const data = await response.json();
-        if (response.ok) {
-          setClasses(data.classes);
-        }
-      } catch (error) {
-        console.error('Failed to fetch today classes:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    fetchClasses();
-  }, [limit]);
+  const classes = data?.classes ?? [];
 
   const formatTime = (dateStr: string) => {
     return new Date(dateStr).toLocaleTimeString('he-IL', {

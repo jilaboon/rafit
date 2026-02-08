@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,9 +41,7 @@ interface UserProfile {
 
 export default function ProfilePage() {
   const router = useRouter();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
+  const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [formData, setFormData] = useState({
@@ -50,36 +49,22 @@ export default function ProfilePage() {
     phone: '',
   });
 
-  useEffect(() => {
-    async function fetchProfile() {
-      try {
-        const response = await fetch('/api/users/me');
-        const data = await response.json();
-        if (response.ok) {
-          setProfile(data.user);
-          setFormData({
-            name: data.user.name || '',
-            phone: data.user.phone || '',
-          });
-        } else {
-          setError(data.error);
-        }
-      } catch (err) {
-        setError('Failed to load profile');
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    fetchProfile();
-  }, []);
+  const { data: profile, isLoading, error: queryError } = useQuery<UserProfile>({
+    queryKey: ['profile'],
+    queryFn: async () => {
+      const response = await fetch('/api/users/me');
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to load profile');
+      setFormData({
+        name: data.user.name || '',
+        phone: data.user.phone || '',
+      });
+      return data.user;
+    },
+  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSaving(true);
-    setError(null);
-    setSuccess(null);
-
-    try {
+  const updateMutation = useMutation({
+    mutationFn: async () => {
       const response = await fetch('/api/users/me', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -88,26 +73,31 @@ export default function ProfilePage() {
           phone: formData.phone || null,
         }),
       });
-
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to update profile');
-      }
-
-      setProfile((prev) => (prev ? { ...prev, ...data.user } : null));
+      if (!response.ok) throw new Error(data.error || 'Failed to update profile');
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
       setSuccess(data.message);
-
-      // Refresh the page to update the session
+      setError(null);
       setTimeout(() => {
         router.refresh();
       }, 1000);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setIsSaving(false);
-    }
+    },
+    onError: (err: Error) => {
+      setError(err.message || 'An error occurred');
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+    updateMutation.mutate();
   };
+
+  const isSaving = updateMutation.isPending;
 
   const hasChanges =
     profile && (formData.name !== profile.name || formData.phone !== (profile.phone || ''));
@@ -123,7 +113,7 @@ export default function ProfilePage() {
   if (!profile) {
     return (
       <div className="text-center py-12">
-        <p className="text-muted-foreground">{error || 'Failed to load profile'}</p>
+        <p className="text-muted-foreground">{queryError?.message || error || 'Failed to load profile'}</p>
       </div>
     );
   }

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { format, addDays, startOfWeek, isSameDay } from 'date-fns';
 import { he } from 'date-fns/locale';
@@ -51,12 +52,10 @@ interface ClassInfo {
 type ViewMode = 'day' | 'week' | 'list';
 
 export default function SchedulePage() {
+  const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>('day');
-  const [classes, setClasses] = useState<ClassInfo[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [cancelClass, setCancelClass] = useState<ClassInfo | null>(null);
-  const [isCancelling, setIsCancelling] = useState(false);
 
   const weekStart = startOfWeek(selectedDate, { weekStartsOn: 0 });
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -65,51 +64,42 @@ export default function SchedulePage() {
   const goToNextDay = () => setSelectedDate((d) => addDays(d, 1));
   const goToToday = () => setSelectedDate(new Date());
 
-  const fetchClasses = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+  const dateStr = format(selectedDate, 'yyyy-MM-dd');
+
+  const { data, isLoading } = useQuery<{ classes: ClassInfo[] }>({
+    queryKey: ['classes', { date: dateStr }],
+    queryFn: async () => {
       const response = await fetch(`/api/classes?date=${dateStr}`);
-      const data = await response.json();
-      if (data.classes) {
-        setClasses(data.classes);
-      }
-    } catch (error) {
-      console.error('Error fetching classes:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [selectedDate]);
+      if (!response.ok) throw new Error('Failed to fetch classes');
+      return response.json();
+    },
+  });
 
-  useEffect(() => {
-    fetchClasses();
-  }, [fetchClasses]);
+  const classes = data?.classes ?? [];
 
-  const handleCancelClass = async () => {
-    if (!cancelClass) return;
-
-    setIsCancelling(true);
-    try {
-      const response = await fetch(`/api/classes/${cancelClass.id}`, {
+  const cancelMutation = useMutation({
+    mutationFn: async (classId: string) => {
+      const response = await fetch(`/api/classes/${classId}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ cancelReason: 'ביטול ידני' }),
       });
-
       const data = await response.json();
+      if (!data.success) throw new Error(data.error || 'שגיאה בביטול השיעור');
+      return data;
+    },
+    onSuccess: () => {
+      setCancelClass(null);
+      queryClient.invalidateQueries({ queryKey: ['classes'] });
+    },
+    onError: (error: Error) => {
+      alert(error.message);
+    },
+  });
 
-      if (data.success) {
-        setCancelClass(null);
-        fetchClasses();
-      } else {
-        alert(data.error || 'שגיאה בביטול השיעור');
-      }
-    } catch (error) {
-      console.error('Error cancelling class:', error);
-      alert('שגיאה בביטול השיעור');
-    } finally {
-      setIsCancelling(false);
-    }
+  const handleCancelClass = () => {
+    if (!cancelClass) return;
+    cancelMutation.mutate(cancelClass.id);
   };
 
   const filteredClasses = classes.filter((cls) => !cls.isCancelled);
@@ -420,9 +410,9 @@ export default function SchedulePage() {
             <Button
               variant="destructive"
               onClick={handleCancelClass}
-              disabled={isCancelling}
+              disabled={cancelMutation.isPending}
             >
-              {isCancelling && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
+              {cancelMutation.isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
               בטל שיעור
             </Button>
           </DialogFooter>

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Input } from '@/components/ui/input';
 import {
   Table,
@@ -35,38 +36,27 @@ interface PaginationInfo {
 }
 
 export default function ActivityPage() {
-  const [logs, setLogs] = useState<AuditLog[]>([]);
-  const [pagination, setPagination] = useState<PaginationInfo | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [actionFilter, setActionFilter] = useState('');
+  const [activeFilter, setActiveFilter] = useState('');
 
-  const fetchLogs = async (action: string = '') => {
-    setIsLoading(true);
-    try {
+  const { data, isLoading } = useQuery<{ logs: AuditLog[]; pagination: PaginationInfo }>({
+    queryKey: ['admin-activity', { action: activeFilter }],
+    queryFn: async () => {
       const params = new URLSearchParams();
-      if (action) params.set('action', action);
-
+      if (activeFilter) params.set('action', activeFilter);
       const response = await fetch(`/api/admin/activity?${params}`);
-      const data = await response.json();
+      const result = await response.json();
+      if (!response.ok) throw new Error('Failed to fetch activity logs');
+      return { logs: result.logs, pagination: result.pagination };
+    },
+  });
 
-      if (response.ok) {
-        setLogs(data.logs);
-        setPagination(data.pagination);
-      }
-    } catch (error) {
-      console.error('Failed to fetch activity logs:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchLogs();
-  }, []);
+  const logs = data?.logs || [];
+  const pagination = data?.pagination || null;
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchLogs(actionFilter);
+    setActiveFilter(actionFilter);
   };
 
   const getActionColor = (action: string) => {

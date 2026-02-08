@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -36,27 +36,17 @@ export function PaymentsWidget({
   showViewAll = true,
   showSummary = true,
 }: PaymentsWidgetProps) {
-  const [payments, setPayments] = useState<Payment[]>([]);
-  const [summary, setSummary] = useState<PaymentsSummary | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data, isLoading } = useQuery<{ payments: Payment[]; summary: PaymentsSummary }>({
+    queryKey: ['dashboard-payments', limit],
+    queryFn: async () => {
+      const response = await fetch(`/api/dashboard/payments?limit=${limit}`);
+      if (!response.ok) throw new Error('Failed to fetch payments');
+      return response.json();
+    },
+  });
 
-  useEffect(() => {
-    async function fetchPayments() {
-      try {
-        const response = await fetch(`/api/dashboard/payments?limit=${limit}`);
-        const data = await response.json();
-        if (response.ok) {
-          setPayments(data.payments);
-          setSummary(data.summary);
-        }
-      } catch (error) {
-        console.error('Failed to fetch payments:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    fetchPayments();
-  }, [limit]);
+  const payments = data?.payments ?? [];
+  const summary = data?.summary ?? null;
 
   const formatCurrency = (amount: number, currency: string = 'ILS') => {
     return new Intl.NumberFormat('he-IL', {

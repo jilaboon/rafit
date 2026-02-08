@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -39,9 +40,7 @@ interface StaffProfile {
 
 export default function StaffProfilePage() {
   const router = useRouter();
-  const [profile, setProfile] = useState<StaffProfile | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
+  const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [noProfile, setNoProfile] = useState(false);
@@ -59,50 +58,43 @@ export default function StaffProfilePage() {
   const [newSpecialty, setNewSpecialty] = useState('');
   const [newCertification, setNewCertification] = useState('');
 
-  useEffect(() => {
-    async function fetchProfile() {
-      try {
-        const response = await fetch('/api/users/me/staff-profile');
-        const data = await response.json();
+  const { data: profile, isLoading, error: queryError } = useQuery<StaffProfile | null>({
+    queryKey: ['staff-profile'],
+    queryFn: async () => {
+      const response = await fetch('/api/users/me/staff-profile');
+      const data = await response.json();
 
-        if (response.ok) {
-          if (data.staffProfile) {
-            setProfile(data.staffProfile);
-            setFormData({
-              title: data.staffProfile.title || '',
-              bio: data.staffProfile.bio || '',
-              specialties: data.staffProfile.specialties || [],
-              certifications: data.staffProfile.certifications || [],
-              hourlyRate: data.staffProfile.hourlyRate?.toString() || '',
-              color: data.staffProfile.color || '#3b82f6',
-              isPublic: data.staffProfile.isPublic ?? true,
-            });
-          } else {
-            setNoProfile(true);
-          }
+      if (response.ok) {
+        if (data.staffProfile) {
+          setFormData({
+            title: data.staffProfile.title || '',
+            bio: data.staffProfile.bio || '',
+            specialties: data.staffProfile.specialties || [],
+            certifications: data.staffProfile.certifications || [],
+            hourlyRate: data.staffProfile.hourlyRate?.toString() || '',
+            color: data.staffProfile.color || '#3b82f6',
+            isPublic: data.staffProfile.isPublic ?? true,
+          });
+          setNoProfile(false);
+          return data.staffProfile;
         } else {
-          if (response.status === 403) {
-            setError('רק מדריכים ומנהלים יכולים ליצור פרופיל מדריך');
-          } else {
-            setError(data.error);
-          }
+          setNoProfile(true);
+          return null;
         }
-      } catch (err) {
-        setError('Failed to load profile');
-      } finally {
-        setIsLoading(false);
+      } else {
+        if (response.status === 403) {
+          throw new Error('רק מדריכים ומנהלים יכולים ליצור פרופיל מדריך');
+        }
+        throw new Error(data.error || 'Failed to load profile');
       }
-    }
-    fetchProfile();
-  }, []);
+    },
+    retry: false,
+  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSaving(true);
-    setError(null);
-    setSuccess(null);
+  const fetchError = queryError?.message || error;
 
-    try {
+  const saveMutation = useMutation({
+    mutationFn: async () => {
       const response = await fetch('/api/users/me/staff-profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -116,22 +108,29 @@ export default function StaffProfilePage() {
           isPublic: formData.isPublic,
         }),
       });
-
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to update profile');
-      }
-
-      setProfile(data.staffProfile);
+      if (!response.ok) throw new Error(data.error || 'Failed to update profile');
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['staff-profile'] });
       setNoProfile(false);
       setSuccess(data.message);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setIsSaving(false);
-    }
+      setError(null);
+    },
+    onError: (err: Error) => {
+      setError(err.message || 'An error occurred');
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+    saveMutation.mutate();
   };
+
+  const isSaving = saveMutation.isPending;
 
   const addSpecialty = () => {
     if (newSpecialty.trim() && !formData.specialties.includes(newSpecialty.trim())) {
@@ -175,7 +174,7 @@ export default function StaffProfilePage() {
     );
   }
 
-  if (error && !noProfile && !profile) {
+  if (fetchError && !noProfile && !profile) {
     return (
       <div className="space-y-4">
         <Link href="/dashboard/profile">
@@ -186,7 +185,7 @@ export default function StaffProfilePage() {
         </Link>
         <Card>
           <CardContent className="pt-6">
-            <p className="text-center text-muted-foreground">{error}</p>
+            <p className="text-center text-muted-foreground">{fetchError}</p>
           </CardContent>
         </Card>
       </div>

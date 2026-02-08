@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -73,31 +74,17 @@ interface ReportData {
 
 export default function ReportsPage() {
   const [period, setPeriod] = useState<'week' | 'month' | 'quarter'>('month');
-  const [data, setData] = useState<ReportData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  const fetchReports = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
+  const { data, isLoading, error: queryError, refetch } = useQuery<ReportData>({
+    queryKey: ['reports', { period }],
+    queryFn: async () => {
       const response = await fetch(`/api/reports?period=${period}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch reports');
-      }
-      const result = await response.json();
-      setData(result);
-    } catch (err) {
-      setError('שגיאה בטעינת הדוחות');
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [period]);
+      if (!response.ok) throw new Error('Failed to fetch reports');
+      return response.json();
+    },
+  });
 
-  useEffect(() => {
-    fetchReports();
-  }, [fetchReports]);
+  const error = queryError ? 'שגיאה בטעינת הדוחות' : null;
 
   const formatDate = (dateStr: string) => {
     try {
@@ -120,7 +107,7 @@ export default function ReportsPage() {
       <div className="flex flex-col items-center justify-center h-64 gap-4">
         <AlertCircle className="h-12 w-12 text-destructive" />
         <p className="text-destructive">{error}</p>
-        <Button onClick={fetchReports}>נסה שוב</Button>
+        <Button onClick={() => refetch()}>נסה שוב</Button>
       </div>
     );
   }

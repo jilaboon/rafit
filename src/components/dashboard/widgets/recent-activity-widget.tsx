@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -45,25 +45,16 @@ export function RecentActivityWidget({
   limit = 10,
   showViewAll = true,
 }: RecentActivityWidgetProps) {
-  const [activities, setActivities] = useState<ActivityItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data, isLoading } = useQuery<{ activities: ActivityItem[] }>({
+    queryKey: ['dashboard-recent-activity', limit],
+    queryFn: async () => {
+      const response = await fetch(`/api/dashboard/recent-activity?limit=${limit}`);
+      if (!response.ok) throw new Error('Failed to fetch recent activity');
+      return response.json();
+    },
+  });
 
-  useEffect(() => {
-    async function fetchActivity() {
-      try {
-        const response = await fetch(`/api/dashboard/recent-activity?limit=${limit}`);
-        const data = await response.json();
-        if (response.ok) {
-          setActivities(data.activities);
-        }
-      } catch (error) {
-        console.error('Failed to fetch recent activity:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    fetchActivity();
-  }, [limit]);
+  const activities = data?.activities ?? [];
 
   const formatTime = (dateStr: string) => {
     const date = new Date(dateStr);

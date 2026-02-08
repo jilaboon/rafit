@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, use } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -62,29 +63,18 @@ export default function TenantEditPage({
   params: Promise<{ id: string }>;
 }) {
   const router = useRouter();
-  const [tenantId, setTenantId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
+  const queryClient = useQueryClient();
+  const { id: tenantId } = use(params);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState<TenantData | null>(null);
 
-  useEffect(() => {
-    params.then(({ id }) => {
-      setTenantId(id);
-      fetchTenant(id);
-    });
-  }, [params]);
-
-  const fetchTenant = async (id: string) => {
-    try {
-      const response = await fetch(`/api/admin/tenants/${id}`);
+  const { isLoading, error: queryError } = useQuery<TenantData>({
+    queryKey: ['admin-tenant', tenantId],
+    queryFn: async () => {
+      const response = await fetch(`/api/admin/tenants/${tenantId}`);
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'שגיאה בטעינת פרטי העסק');
-      }
-
-      setFormData({
+      if (!response.ok) throw new Error(data.error || 'שגיאה בטעינת פרטי העסק');
+      const tenant: TenantData = {
         id: data.tenant.id,
         name: data.tenant.name,
         slug: data.tenant.slug,
@@ -94,22 +84,17 @@ export default function TenantEditPage({
         currency: data.tenant.currency,
         locale: data.tenant.locale,
         status: data.tenant.status,
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'אירעה שגיאה');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      };
+      setFormData(tenant);
+      return tenant;
+    },
+    enabled: !!tenantId,
+    retry: false,
+  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData || !tenantId) return;
-
-    setIsSaving(true);
-    setError(null);
-
-    try {
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      if (!formData || !tenantId) throw new Error('Missing data');
       const response = await fetch(`/api/admin/tenants/${tenantId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -123,20 +108,28 @@ export default function TenantEditPage({
           status: formData.status,
         }),
       });
-
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'שגיאה בעדכון העסק');
-      }
-
+      if (!response.ok) throw new Error(data.error || 'שגיאה בעדכון העסק');
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-tenant', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['admin-tenants'] });
       router.push(`/admin/tenants/${tenantId}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'אירעה שגיאה');
-    } finally {
-      setIsSaving(false);
-    }
+    },
+    onError: (err: Error) => {
+      setError(err.message || 'אירעה שגיאה');
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData || !tenantId) return;
+    setError(null);
+    saveMutation.mutate();
   };
+
+  const isSaving = saveMutation.isPending;
 
   if (isLoading) {
     return (
@@ -146,7 +139,9 @@ export default function TenantEditPage({
     );
   }
 
-  if (error && !formData) {
+  const displayError = error || queryError?.message || null;
+
+  if (displayError && !formData) {
     return (
       <div className="space-y-6" dir="rtl">
         <div className="flex items-center gap-4">
@@ -159,7 +154,7 @@ export default function TenantEditPage({
         </div>
         <Card>
           <CardContent className="pt-6">
-            <p className="text-destructive">{error}</p>
+            <p className="text-destructive">{displayError}</p>
           </CardContent>
         </Card>
       </div>

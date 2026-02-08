@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -40,25 +40,14 @@ export function RevenueWidget({
   showDetails = false,
   period = 'month'
 }: RevenueWidgetProps) {
-  const [revenue, setRevenue] = useState<RevenueData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchRevenue() {
-      try {
-        const response = await fetch(`/api/dashboard/revenue?period=${period}`);
-        const data = await response.json();
-        if (response.ok) {
-          setRevenue(data);
-        }
-      } catch (error) {
-        console.error('Failed to fetch revenue:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    fetchRevenue();
-  }, [period]);
+  const { data: revenue, isLoading } = useQuery<RevenueData>({
+    queryKey: ['dashboard-revenue', period],
+    queryFn: async () => {
+      const response = await fetch(`/api/dashboard/revenue?period=${period}`);
+      if (!response.ok) throw new Error('Failed to fetch revenue');
+      return response.json();
+    },
+  });
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('he-IL', {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -26,27 +26,17 @@ interface TeamOverviewWidgetProps {
 }
 
 export function TeamOverviewWidget({ limit = 5, showViewAll = true }: TeamOverviewWidgetProps) {
-  const [members, setMembers] = useState<TeamMember[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data, isLoading } = useQuery<{ users: TeamMember[] }>({
+    queryKey: ['team-members'],
+    queryFn: async () => {
+      const response = await fetch('/api/tenants/users');
+      if (!response.ok) throw new Error('Failed to fetch team');
+      return response.json();
+    },
+  });
 
-  useEffect(() => {
-    async function fetchTeam() {
-      try {
-        const response = await fetch('/api/tenants/users');
-        const data = await response.json();
-        if (response.ok) {
-          setMembers(data.users.slice(0, limit));
-          setTotalCount(data.users.length);
-        }
-      } catch (error) {
-        console.error('Failed to fetch team:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    fetchTeam();
-  }, [limit]);
+  const members = data?.users?.slice(0, limit) ?? [];
+  const totalCount = data?.users?.length ?? 0;
 
   return (
     <Card>

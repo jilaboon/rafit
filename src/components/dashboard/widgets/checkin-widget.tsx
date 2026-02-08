@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -24,44 +25,40 @@ interface CheckinWidgetProps {
 }
 
 export function CheckinWidget({ limit = 5, showViewAll = true }: CheckinWidgetProps) {
-  const [bookings, setBookings] = useState<PendingCheckin[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [checkingIn, setCheckingIn] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    fetchBookings();
-  }, [limit]);
-
-  async function fetchBookings() {
-    try {
+  const { data, isLoading } = useQuery<{ bookings: PendingCheckin[] }>({
+    queryKey: ['dashboard-pending-checkins', limit],
+    queryFn: async () => {
       const response = await fetch(`/api/dashboard/pending-checkins?limit=${limit}`);
-      const data = await response.json();
-      if (response.ok) {
-        setBookings(data.bookings);
-      }
-    } catch (error) {
-      console.error('Failed to fetch pending check-ins:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }
+      if (!response.ok) throw new Error('Failed to fetch pending check-ins');
+      return response.json();
+    },
+  });
 
-  async function handleCheckin(bookingId: string) {
-    setCheckingIn(bookingId);
-    try {
+  const bookings = data?.bookings ?? [];
+
+  const checkinMutation = useMutation({
+    mutationFn: async (bookingId: string) => {
       const response = await fetch(`/api/bookings/${bookingId}/checkin`, {
         method: 'POST',
       });
-      if (response.ok) {
-        // Remove from list
-        setBookings(bookings.filter((b) => b.id !== bookingId));
-      }
-    } catch (error) {
-      console.error('Failed to check in:', error);
-    } finally {
+      if (!response.ok) throw new Error('Failed to check in');
+      return response.json();
+    },
+    onMutate: (bookingId) => {
+      setCheckingIn(bookingId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dashboard-pending-checkins'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-today-classes'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+    },
+    onSettled: () => {
       setCheckingIn(null);
-    }
-  }
+    },
+  });
 
   const formatTime = (dateStr: string) => {
     return new Date(dateStr).toLocaleTimeString('he-IL', {
@@ -119,7 +116,7 @@ export function CheckinWidget({ limit = 5, showViewAll = true }: CheckinWidgetPr
                 </div>
                 <Button
                   size="sm"
-                  onClick={() => handleCheckin(booking.id)}
+                  onClick={() => checkinMutation.mutate(booking.id)}
                   disabled={checkingIn === booking.id}
                 >
                   {checkingIn === booking.id ? (

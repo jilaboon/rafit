@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -61,12 +62,10 @@ const tabs = [
 ];
 
 export default function SettingsPage() {
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<SettingsTab>('business');
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [settings, setSettings] = useState<TenantSettings | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -91,16 +90,12 @@ export default function SettingsPage() {
     },
   });
 
-  const fetchSettings = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
+  const { data: settings, isLoading } = useQuery<TenantSettings>({
+    queryKey: ['settings'],
+    queryFn: async () => {
       const response = await fetch('/api/tenants/settings');
-      if (!response.ok) {
-        throw new Error('Failed to fetch settings');
-      }
+      if (!response.ok) throw new Error('Failed to fetch settings');
       const data = await response.json();
-      setSettings(data.settings);
       setFormData({
         name: data.settings.name || '',
         email: data.settings.email || '',
@@ -110,45 +105,39 @@ export default function SettingsPage() {
         payments: data.settings.payments,
         branding: data.settings.branding,
       });
-    } catch (err) {
-      setError('שגיאה בטעינת ההגדרות');
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+      return data.settings;
+    },
+  });
 
-  useEffect(() => {
-    fetchSettings();
-  }, [fetchSettings]);
-
-  const handleSave = async () => {
-    try {
-      setIsSaving(true);
-      setError(null);
-      setSuccess(null);
-
+  const saveMutation = useMutation({
+    mutationFn: async () => {
       const response = await fetch('/api/tenants/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
-
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to save settings');
-      }
-
-      setSettings(data.settings);
+      if (!response.ok) throw new Error(data.error || 'Failed to save settings');
+      return data.settings;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['settings'] });
       setSuccess('ההגדרות נשמרו בהצלחה');
+      setError(null);
       setTimeout(() => setSuccess(null), 3000);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'שגיאה בשמירת ההגדרות');
-    } finally {
-      setIsSaving(false);
-    }
+    },
+    onError: (err: Error) => {
+      setError(err.message || 'שגיאה בשמירת ההגדרות');
+    },
+  });
+
+  const handleSave = () => {
+    setError(null);
+    setSuccess(null);
+    saveMutation.mutate();
   };
+
+  const isSaving = saveMutation.isPending;
 
   const updateFormField = (field: string, value: string | number | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
