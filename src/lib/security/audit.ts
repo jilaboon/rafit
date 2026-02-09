@@ -31,6 +31,7 @@ export type AuditAction =
   | 'customer.update'
   | 'customer.delete'
   | 'customer.export'
+  | 'customer.invite'
   | 'membership.create'
   | 'membership.update'
   | 'membership.cancel'
@@ -198,6 +199,7 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   'customer.update': 'עדכון לקוח',
   'customer.delete': 'מחיקת לקוח',
   'customer.export': 'ייצוא נתוני לקוח',
+  'customer.invite': 'הזמנת לקוח לפורטל',
   'membership.create': 'יצירת מנוי',
   'membership.update': 'עדכון מנוי',
   'membership.cancel': 'ביטול מנוי',

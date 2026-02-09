@@ -12,10 +12,14 @@ const publicPaths = [
   '/verify-email',
   '/api/auth',
   '/api/health',
+  '/portal/register',
+  '/portal/login',
+  '/api/portal/invitations',
+  '/api/portal/auth',
 ];
 
 // Paths that require authentication
-const protectedPaths = ['/dashboard', '/api/tenants', '/api/users', '/api/bookings'];
+const protectedPaths = ['/dashboard', '/api/tenants', '/api/users', '/api/bookings', '/portal', '/api/portal'];
 
 // Paths that require super admin
 const adminPaths = ['/admin', '/api/admin'];
@@ -148,6 +152,26 @@ export async function middleware(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Customer/Staff routing isolation
+    const isPortalPath = pathname.startsWith('/portal') || pathname.startsWith('/api/portal');
+    const isDashboardPath = pathname.startsWith('/dashboard');
+
+    if (isPortalPath && !token.isCustomer) {
+      // Non-customers can't access portal
+      if (!pathname.startsWith('/api/')) {
+        return NextResponse.redirect(new URL('/dashboard', request.url));
+      }
+      return NextResponse.json({ error: 'Customer access required' }, { status: 403 });
+    }
+
+    if (isDashboardPath && token.isCustomer) {
+      // Customers can't access staff dashboard
+      if (!pathname.startsWith('/api/')) {
+        return NextResponse.redirect(new URL('/portal', request.url));
+      }
+      return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
+    }
+
     // Add user info to headers for downstream use
     const response = NextResponse.next();
     response.headers.set('x-user-id', token.id as string);
@@ -164,6 +188,11 @@ export async function middleware(request: NextRequest) {
     }
     if (token.role) {
       response.headers.set('x-user-role', token.role as string);
+    }
+    if (token.isCustomer) {
+      response.headers.set('x-is-customer', 'true');
+      response.headers.set('x-customer-id', token.customerId as string);
+      response.headers.set('x-customer-tenant-id', token.customerTenantId as string);
     }
 
     return response;

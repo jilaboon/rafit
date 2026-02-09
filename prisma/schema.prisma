@@ -457,10 +457,31 @@ model Customer {
   bookings      Booking[]
   payments      Payment[]
   creditBalance CreditBalance?
+  invitations   CustomerInvitation[]
 
   @@unique([tenantId, email])
   @@index([tenantId, lastName])
   @@map("customers")
+}
+
+model CustomerInvitation {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  customerId  String    @map("customer_id") @db.Uuid
+  email       String
+  token       String    @unique
+  expiresAt   DateTime  @map("expires_at")
+  acceptedAt  DateTime? @map("accepted_at")
+  invitedBy   String    @map("invited_by") @db.Uuid // Staff user who sent invite
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  customer    Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([customerId])
+  @@map("customer_invitations")
 }
 
 // =====================================================

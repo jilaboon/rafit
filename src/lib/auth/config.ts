@@ -225,6 +225,31 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           }
         }
 
+        // Customer portal: if no staff tenant found, check if user is a customer
+        if (token.id && !token.tenantId && !token.isCustomer && !token.isSuperAdmin) {
+          authLog('JWT: Checking if user is a customer');
+          try {
+            const customer = await prisma.customer.findFirst({
+              where: {
+                userId: token.id as string,
+                deletedAt: null,
+              },
+              select: {
+                id: true,
+                tenantId: true,
+              },
+            });
+            if (customer) {
+              token.isCustomer = true;
+              token.customerId = customer.id;
+              token.customerTenantId = customer.tenantId;
+              authLog('JWT: Found customer:', customer.id, 'tenant:', customer.tenantId);
+            }
+          } catch (error) {
+            authLog('JWT: Error checking customer status:', error);
+          }
+        }
+
         authLog('JWT: Returning token');
         return token;
       } catch (error) {
@@ -243,6 +268,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.isImpersonating = token.isImpersonating ?? false;
         session.user.impersonatedUserId = token.impersonatedUserId as string | undefined;
         session.user.originalUserId = token.originalUserId as string | undefined;
+        // Customer portal fields
+        session.user.isCustomer = (token.isCustomer as boolean) ?? false;
+        session.user.customerId = token.customerId as string | undefined;
+        session.user.customerTenantId = token.customerTenantId as string | undefined;
         authLog('Session: Set user data, id=', session.user.id, 'isSuperAdmin=', session.user.isSuperAdmin);
       }
       return session;

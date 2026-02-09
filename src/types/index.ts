@@ -15,6 +15,10 @@ declare module 'next-auth' {
       isImpersonating?: boolean;
       impersonatedUserId?: string;
       originalUserId?: string;
+      // Customer portal fields
+      isCustomer?: boolean;
+      customerId?: string;
+      customerTenantId?: string;
     };
   }
 
@@ -36,6 +40,10 @@ declare module 'next-auth/jwt' {
     isImpersonating?: boolean;
     impersonatedUserId?: string;
     originalUserId?: string;
+    // Customer portal fields
+    isCustomer?: boolean;
+    customerId?: string;
+    customerTenantId?: string;
   }
 }
 
