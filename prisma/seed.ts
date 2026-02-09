@@ -19,6 +19,7 @@ async function main() {
   await prisma.membership.deleteMany();
   await prisma.membershipPlan.deleteMany();
   await prisma.payment.deleteMany();
+  await prisma.customerInvitation.deleteMany();
   await prisma.customer.deleteMany();
   await prisma.staffProfile.deleteMany();
   await prisma.tenantUser.deleteMany();
@@ -441,12 +442,26 @@ async function main() {
     },
   });
 
+  // Create portal customer user (linked to customer record below)
+  console.log('🔑 Creating portal demo customer user...');
+  const portalCustomerUser = await prisma.user.create({
+    data: {
+      email: 'customer1@demo.com',
+      passwordHash,
+      name: 'רחל דוידוביץ',
+      phone: '050-5678901',
+      emailVerifiedAt: new Date(),
+      status: 'ACTIVE',
+    },
+  });
+
   // Create demo customers
   console.log('🧑‍🤝‍🧑 Creating demo customers...');
   const customers = await Promise.all([
     prisma.customer.create({
       data: {
         tenantId: tenant.id,
+        userId: portalCustomerUser.id,
         email: 'customer1@demo.com',
         firstName: 'רחל',
         lastName: 'דוידוביץ',
@@ -982,13 +997,15 @@ async function main() {
   console.log('\n🛡️ Super Admin account:');
   console.log('   Email:    admin@rafit.com');
   console.log('   Password: SuperAdmin123!');
-  console.log('\n📧 Demo accounts (Password: Demo1234!):');
+  console.log('\n📧 Demo staff accounts (Password: Demo1234!):');
   console.log('   Owner:      owner@demo.com');
   console.log('   Admin:      admin@demo.com');
   console.log('   Coach:      coach@demo.com');
   console.log('   Coach 2:    coach2@demo.com');
   console.log('   FrontDesk:  frontdesk@demo.com');
   console.log('   Accountant: accountant@demo.com');
+  console.log('\n🏋️ Portal customer account (Password: Demo1234!):');
+  console.log('   Customer:   customer1@demo.com  (רחל דוידוביץ)');
   console.log('\n📊 Demo data created:');
   console.log('   - 10 customers');
   console.log('   - 6 classes today + 2 tomorrow');
