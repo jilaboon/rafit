@@ -48,7 +48,17 @@ function LoginForm() {
           description: 'אימייל או סיסמה שגויים',
         });
       } else if (result?.ok) {
-        // Success - manually redirect
+        // Fetch session to determine user type and redirect accordingly
+        try {
+          const sessionResp = await fetch('/api/auth/session');
+          const session = await sessionResp.json();
+          if (session?.user?.isCustomer) {
+            window.location.href = '/portal';
+            return;
+          }
+        } catch {
+          // If session fetch fails, fall through to default redirect
+        }
         window.location.href = callbackUrl;
       }
     } catch (err) {

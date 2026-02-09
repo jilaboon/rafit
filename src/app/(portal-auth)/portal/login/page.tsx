@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Loader2 } from 'lucide-react';
 
 export default function PortalLoginPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const registered = searchParams.get('registered');
 
@@ -32,7 +31,8 @@ export default function PortalLoginPage() {
       });
 
       if (result?.ok) {
-        router.push('/portal');
+        window.location.href = '/portal';
+        return;
       } else {
         setError('אימייל או סיסמה שגויים');
       }

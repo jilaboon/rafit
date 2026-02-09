@@ -243,10 +243,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               token.isCustomer = true;
               token.customerId = customer.id;
               token.customerTenantId = customer.tenantId;
-              authLog('JWT: Found customer:', customer.id, 'tenant:', customer.tenantId);
+              console.log('[Auth] Customer identified:', customer.id, 'tenant:', customer.tenantId);
+            } else {
+              console.log('[Auth] No customer record found for userId:', token.id);
             }
           } catch (error) {
-            authLog('JWT: Error checking customer status:', error);
+            console.error('[Auth] Error checking customer status:', error);
           }
         }
 
