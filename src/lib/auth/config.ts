@@ -200,7 +200,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         // Fetch tenant info if not present and not a super admin without tenant
-        if (token.id && !token.tenantId && !token.isImpersonating) {
+        if (token.id && !token.tenantId && !token.isImpersonating && !token.isCustomer) {
           authLog('JWT: Fetching tenant info for user:', token.id);
           try {
             const tenantUser = await prisma.tenantUser.findFirst({

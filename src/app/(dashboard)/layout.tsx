@@ -14,6 +14,11 @@ export default async function DashboardLayout({
     redirect('/login');
   }
 
+  // Redirect customers to portal
+  if (session.user.isCustomer) {
+    redirect('/portal');
+  }
+
   // Redirect super admin without tenant context to admin dashboard
   if (session.user.isSuperAdmin && !session.user.tenantId && !session.user.isImpersonating) {
     redirect('/admin');
