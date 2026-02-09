@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 
-export default function PortalLoginPage() {
+function LoginForm() {
   const searchParams = useSearchParams();
   const registered = searchParams.get('registered');
 
@@ -90,5 +90,26 @@ export default function PortalLoginPage() {
         </form>
       </CardContent>
     </Card>
+  );
+}
+
+export default function PortalLoginPage() {
+  return (
+    <Suspense fallback={
+      <Card>
+        <CardHeader>
+          <CardTitle>כניסה לפורטל</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4 animate-pulse">
+            <div className="h-10 bg-muted rounded" />
+            <div className="h-10 bg-muted rounded" />
+            <div className="h-10 bg-muted rounded" />
+          </div>
+        </CardContent>
+      </Card>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }
