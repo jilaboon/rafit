@@ -91,7 +91,7 @@ RAFIT is a modern, multi-tenant SaaS platform designed for fitness and wellness 
 | Role | Email | Password |
 |------|-------|----------|
 | Owner | owner@demo.com | Demo1234! |
-| Admin | admin@demo.com | Demo1234! |
+| Network Manager | admin@demo.com | Demo1234! |
 | Network Manager | network@demo.com | Demo1234! |
 | Coach | coach@demo.com | Demo1234! |
 | Front Desk | frontdesk@demo.com | Demo1234! |
@@ -179,8 +179,7 @@ See [THREAT_MODEL.md](docs/THREAT_MODEL.md) for detailed security documentation.
 | Role | Description |
 |------|-------------|
 | OWNER | Full access including billing and business deletion |
-| ADMIN | Full operational access |
-| REGIONAL_MANAGER | Multi-branch management and oversight |
+| NETWORK_MANAGER | Full operational access, multi-branch management |
 | MANAGER | Branch-level management |
 | COACH | View schedule, manage own classes |
 | FRONT_DESK | Check-in, booking, basic CRM |

@@ -79,16 +79,14 @@ export function usePermissions() {
   const isOwner = role === 'OWNER';
 
   /**
-   * Check if user is admin or higher.
+   * Check if user is network manager or higher.
    */
-  const isAdmin = role === 'OWNER' || role === 'ADMIN';
+  const isNetworkManager = role === 'OWNER' || role === 'NETWORK_MANAGER';
 
   /**
    * Check if user is manager or higher.
    */
-  const isNetworkManager = isAdmin || role === 'NETWORK_MANAGER';
-
-  const isManager = isAdmin || role === 'NETWORK_MANAGER' || role === 'MANAGER';
+  const isManager = isNetworkManager || role === 'MANAGER';
 
   return {
     // State
@@ -107,7 +105,6 @@ export function usePermissions() {
     outranks,
     assignableRoles,
     isOwner,
-    isAdmin,
     isNetworkManager,
     isManager,
 

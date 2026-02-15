@@ -186,7 +186,7 @@ async function main() {
     data: {
       tenantId: tenant.id,
       userId: adminUser.id,
-      role: UserRole.ADMIN,
+      role: UserRole.NETWORK_MANAGER,
       isActive: true,
     },
   });
@@ -1683,8 +1683,8 @@ async function main() {
   console.log('   Password: SuperAdmin123!');
   console.log('\n📧 Demo staff accounts (Password: Demo1234!):');
   console.log('   Owner:           owner@demo.com');
-  console.log('   Admin:           admin@demo.com');
-  console.log('   Network Mgr:   network@demo.com');
+  console.log('   Network Mgr:     admin@demo.com');
+  console.log('   Network Mgr:     network@demo.com');
   console.log('   Coach:           coach@demo.com');
   console.log('   Coach 2:         coach2@demo.com');
   console.log('   Coach 3:         coach3@demo.com');

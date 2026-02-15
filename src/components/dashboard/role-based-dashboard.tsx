@@ -17,7 +17,6 @@ export function RoleBasedDashboard({ role }: RoleBasedDashboardProps) {
   // Map roles to dashboard views
   switch (role) {
     case 'OWNER':
-    case 'ADMIN':
     case 'NETWORK_MANAGER':
       return <AdminDashboard />;
 

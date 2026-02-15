@@ -87,7 +87,7 @@ export type Permission = keyof typeof PERMISSIONS;
 export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   OWNER: Object.keys(PERMISSIONS) as Permission[],
 
-  ADMIN: [
+  NETWORK_MANAGER: [
     'tenant:read',
     'tenant:update',
     'branch:create',
@@ -138,53 +138,6 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'automation:update',
     'automation:delete',
     'audit:read',
-  ],
-
-  NETWORK_MANAGER: [
-    'branch:create',
-    'branch:read',
-    'branch:update',
-    'branch:delete',
-    'user:create',
-    'user:read',
-    'staff:create',
-    'staff:read',
-    'staff:update',
-    'staff:delete',
-    'customer:create',
-    'customer:read',
-    'customer:update',
-    'customer:delete',
-    'customer:export',
-    'service:create',
-    'service:read',
-    'service:update',
-    'service:delete',
-    'schedule:create',
-    'schedule:read',
-    'schedule:update',
-    'schedule:delete',
-    'schedule:cancel',
-    'booking:create',
-    'booking:read',
-    'booking:update',
-    'booking:cancel',
-    'booking:checkin',
-    'membership:create',
-    'membership:read',
-    'membership:update',
-    'membership:cancel',
-    'payment:create',
-    'payment:read',
-    'payment:refund',
-    'report:revenue',
-    'report:attendance',
-    'report:members',
-    'report:export',
-    'automation:create',
-    'automation:read',
-    'automation:update',
-    'automation:delete',
   ],
 
   MANAGER: [
@@ -300,8 +253,7 @@ export function getEffectivePermissions(
 // Role hierarchy for comparison
 export const ROLE_HIERARCHY: Record<UserRole, number> = {
   OWNER: 100,
-  ADMIN: 90,
-  NETWORK_MANAGER: 80,
+  NETWORK_MANAGER: 90,
   MANAGER: 70,
   COACH: 50,
   FRONT_DESK: 40,
@@ -325,7 +277,6 @@ export function getAssignableRoles(role: UserRole): UserRole[] {
 // Hebrew role names
 export const ROLE_LABELS: Record<UserRole, string> = {
   OWNER: 'בעלים',
-  ADMIN: 'מנהל ראשי',
   NETWORK_MANAGER: 'מנהל רשת',
   MANAGER: 'מנהל',
   COACH: 'מדריך',

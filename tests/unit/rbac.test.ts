@@ -57,7 +57,7 @@ describe('RBAC', () => {
   describe('hasAllPermissions', () => {
     it('should return true if user has all permissions', () => {
       expect(
-        hasAllPermissions(UserRole.ADMIN, ['customer:read', 'customer:create'])
+        hasAllPermissions(UserRole.NETWORK_MANAGER, ['customer:read', 'customer:create'])
       ).toBe(true);
     });
 
@@ -69,38 +69,38 @@ describe('RBAC', () => {
   });
 
   describe('roleOutranks', () => {
-    it('should return true for owner over admin', () => {
-      expect(roleOutranks(UserRole.OWNER, UserRole.ADMIN)).toBe(true);
+    it('should return true for owner over network manager', () => {
+      expect(roleOutranks(UserRole.OWNER, UserRole.NETWORK_MANAGER)).toBe(true);
     });
 
-    it('should return true for admin over manager', () => {
-      expect(roleOutranks(UserRole.ADMIN, UserRole.MANAGER)).toBe(true);
+    it('should return true for network manager over manager', () => {
+      expect(roleOutranks(UserRole.NETWORK_MANAGER, UserRole.MANAGER)).toBe(true);
     });
 
     it('should return false for equal roles', () => {
-      expect(roleOutranks(UserRole.ADMIN, UserRole.ADMIN)).toBe(false);
+      expect(roleOutranks(UserRole.NETWORK_MANAGER, UserRole.NETWORK_MANAGER)).toBe(false);
     });
 
     it('should return false for lower role', () => {
-      expect(roleOutranks(UserRole.COACH, UserRole.ADMIN)).toBe(false);
+      expect(roleOutranks(UserRole.COACH, UserRole.NETWORK_MANAGER)).toBe(false);
     });
   });
 
   describe('getAssignableRoles', () => {
     it('should return all lower roles for owner', () => {
       const roles = getAssignableRoles(UserRole.OWNER);
-      expect(roles).toContain(UserRole.ADMIN);
+      expect(roles).toContain(UserRole.NETWORK_MANAGER);
       expect(roles).toContain(UserRole.MANAGER);
       expect(roles).toContain(UserRole.COACH);
       expect(roles).not.toContain(UserRole.OWNER);
     });
 
-    it('should return limited roles for admin', () => {
-      const roles = getAssignableRoles(UserRole.ADMIN);
+    it('should return limited roles for network manager', () => {
+      const roles = getAssignableRoles(UserRole.NETWORK_MANAGER);
       expect(roles).toContain(UserRole.MANAGER);
       expect(roles).toContain(UserRole.COACH);
       expect(roles).not.toContain(UserRole.OWNER);
-      expect(roles).not.toContain(UserRole.ADMIN);
+      expect(roles).not.toContain(UserRole.NETWORK_MANAGER);
     });
 
     it('should return empty array for read-only', () => {
@@ -110,9 +110,21 @@ describe('RBAC', () => {
   });
 
   describe('NETWORK_MANAGER permissions', () => {
+    it('should have tenant read and update permissions', () => {
+      expect(hasPermission(UserRole.NETWORK_MANAGER, 'tenant:read')).toBe(true);
+      expect(hasPermission(UserRole.NETWORK_MANAGER, 'tenant:update')).toBe(true);
+    });
+
     it('should have branch management permissions', () => {
       expect(hasPermission(UserRole.NETWORK_MANAGER, 'branch:create')).toBe(true);
       expect(hasPermission(UserRole.NETWORK_MANAGER, 'branch:delete')).toBe(true);
+    });
+
+    it('should have full user management permissions', () => {
+      expect(hasPermission(UserRole.NETWORK_MANAGER, 'user:create')).toBe(true);
+      expect(hasPermission(UserRole.NETWORK_MANAGER, 'user:update')).toBe(true);
+      expect(hasPermission(UserRole.NETWORK_MANAGER, 'user:delete')).toBe(true);
+      expect(hasPermission(UserRole.NETWORK_MANAGER, 'user:role')).toBe(true);
     });
 
     it('should have staff management permissions', () => {
@@ -130,59 +142,15 @@ describe('RBAC', () => {
       expect(hasPermission(UserRole.NETWORK_MANAGER, 'automation:delete')).toBe(true);
     });
 
-    it('should have report permissions', () => {
+    it('should have report and audit permissions', () => {
       expect(hasPermission(UserRole.NETWORK_MANAGER, 'report:revenue')).toBe(true);
       expect(hasPermission(UserRole.NETWORK_MANAGER, 'report:export')).toBe(true);
+      expect(hasPermission(UserRole.NETWORK_MANAGER, 'audit:read')).toBe(true);
     });
 
-    it('should NOT have tenant management permissions', () => {
-      expect(hasPermission(UserRole.NETWORK_MANAGER, 'tenant:update')).toBe(false);
+    it('should NOT have tenant delete or billing', () => {
       expect(hasPermission(UserRole.NETWORK_MANAGER, 'tenant:delete')).toBe(false);
       expect(hasPermission(UserRole.NETWORK_MANAGER, 'tenant:billing')).toBe(false);
-    });
-
-    it('should NOT have user update/delete/role permissions', () => {
-      expect(hasPermission(UserRole.NETWORK_MANAGER, 'user:update')).toBe(false);
-      expect(hasPermission(UserRole.NETWORK_MANAGER, 'user:delete')).toBe(false);
-      expect(hasPermission(UserRole.NETWORK_MANAGER, 'user:role')).toBe(false);
-    });
-
-    it('should NOT have audit:read permission', () => {
-      expect(hasPermission(UserRole.NETWORK_MANAGER, 'audit:read')).toBe(false);
-    });
-  });
-
-  describe('NETWORK_MANAGER hierarchy', () => {
-    it('should be outranked by ADMIN', () => {
-      expect(roleOutranks(UserRole.ADMIN, UserRole.NETWORK_MANAGER)).toBe(true);
-    });
-
-    it('should outrank MANAGER', () => {
-      expect(roleOutranks(UserRole.NETWORK_MANAGER, UserRole.MANAGER)).toBe(true);
-    });
-  });
-
-  describe('NETWORK_MANAGER assignable roles', () => {
-    it('OWNER should be able to assign NETWORK_MANAGER', () => {
-      const roles = getAssignableRoles(UserRole.OWNER);
-      expect(roles).toContain(UserRole.NETWORK_MANAGER);
-    });
-
-    it('ADMIN should be able to assign NETWORK_MANAGER', () => {
-      const roles = getAssignableRoles(UserRole.ADMIN);
-      expect(roles).toContain(UserRole.NETWORK_MANAGER);
-    });
-
-    it('NETWORK_MANAGER should be able to assign MANAGER and COACH', () => {
-      const roles = getAssignableRoles(UserRole.NETWORK_MANAGER);
-      expect(roles).toContain(UserRole.MANAGER);
-      expect(roles).toContain(UserRole.COACH);
-    });
-
-    it('NETWORK_MANAGER should NOT be able to assign ADMIN or itself', () => {
-      const roles = getAssignableRoles(UserRole.NETWORK_MANAGER);
-      expect(roles).not.toContain(UserRole.ADMIN);
-      expect(roles).not.toContain(UserRole.NETWORK_MANAGER);
     });
   });
 
@@ -192,10 +160,10 @@ describe('RBAC', () => {
       expect(ownerPermissions.length).toBeGreaterThan(30);
     });
 
-    it('should have admin without tenant:delete', () => {
-      const adminPermissions = ROLE_PERMISSIONS[UserRole.ADMIN];
-      expect(adminPermissions).not.toContain('tenant:delete');
-      expect(adminPermissions).not.toContain('tenant:billing');
+    it('should have network manager without tenant:delete', () => {
+      const nmPermissions = ROLE_PERMISSIONS[UserRole.NETWORK_MANAGER];
+      expect(nmPermissions).not.toContain('tenant:delete');
+      expect(nmPermissions).not.toContain('tenant:billing');
     });
 
     it('should have accountant with read-only financial access', () => {

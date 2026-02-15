@@ -127,7 +127,7 @@ export async function PATCH(
     // If changing role, validate the new role is assignable
     if (role) {
       const assignableRoles = getAssignableRoles(currentUserRole);
-      // Owner can assign ADMIN, others can only assign roles below them
+      // Owner can assign any role below them, others can only assign roles below them
       if (currentUserRole === 'OWNER') {
         // Owner can assign any role except OWNER
         if (role === 'OWNER' && tenantUser.role !== 'OWNER') {
