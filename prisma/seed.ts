@@ -149,6 +149,28 @@ async function main() {
     },
   });
 
+  const regionalUser = await prisma.user.create({
+    data: {
+      email: 'regional@demo.com',
+      passwordHash,
+      name: 'אלון ברק',
+      phone: '050-7777777',
+      emailVerifiedAt: new Date(),
+      status: 'ACTIVE',
+    },
+  });
+
+  const coach3User = await prisma.user.create({
+    data: {
+      email: 'coach3@demo.com',
+      passwordHash,
+      name: 'ליאת ארז',
+      phone: '050-8888888',
+      emailVerifiedAt: new Date(),
+      status: 'ACTIVE',
+    },
+  });
+
   // Create tenant users
   console.log('🔗 Linking users to tenant...');
   const ownerTenantUser = await prisma.tenantUser.create({
@@ -205,6 +227,24 @@ async function main() {
     },
   });
 
+  await prisma.tenantUser.create({
+    data: {
+      tenantId: tenant.id,
+      userId: regionalUser.id,
+      role: UserRole.REGIONAL_MANAGER,
+      isActive: true,
+    },
+  });
+
+  const coach3TenantUser = await prisma.tenantUser.create({
+    data: {
+      tenantId: tenant.id,
+      userId: coach3User.id,
+      role: UserRole.COACH,
+      isActive: true,
+    },
+  });
+
   // Create branch
   console.log('🏠 Creating branch...');
   const branch = await prisma.branch.create({
@@ -240,6 +280,39 @@ async function main() {
     },
   });
 
+  // Create Jerusalem branch
+  console.log('🏠 Creating Jerusalem branch...');
+  const jlmBranch = await prisma.branch.create({
+    data: {
+      tenantId: tenant.id,
+      name: 'סניף ירושלים',
+      slug: 'jerusalem',
+      address: 'רחוב יפו 15',
+      city: 'ירושלים',
+      phone: '02-1234567',
+      timezone: 'Asia/Jerusalem',
+      isActive: true,
+    },
+  });
+
+  const jlmYogaRoom = await prisma.room.create({
+    data: {
+      branchId: jlmBranch.id,
+      name: 'אולם שלווה',
+      capacity: 18,
+      description: 'אולם יוגה שקט ומרווח',
+    },
+  });
+
+  const jlmEnergyRoom = await prisma.room.create({
+    data: {
+      branchId: jlmBranch.id,
+      name: 'אולם אנרגיה',
+      capacity: 12,
+      description: 'אולם לאימונים אינטנסיביים',
+    },
+  });
+
   // Create staff profiles
   console.log('👨‍🏫 Creating staff profiles...');
   const coachProfile = await prisma.staffProfile.create({
@@ -266,6 +339,20 @@ async function main() {
       certifications: ['מאמן כושר מוסמך', 'TRX Level 2'],
       hourlyRate: 120,
       color: '#ef4444',
+      isPublic: true,
+    },
+  });
+
+  const coach3Profile = await prisma.staffProfile.create({
+    data: {
+      tenantUserId: coach3TenantUser.id,
+      branchId: jlmBranch.id,
+      title: 'מדריכת יוגה ופילאטיס',
+      bio: 'מדריכה מוסמכת עם התמחות ביוגה טיפולית',
+      specialties: ['יוגה', 'פילאטיס', 'יוגה טיפולית'],
+      certifications: ['RYT-200', 'פילאטיס מכשירים'],
+      hourlyRate: 130,
+      color: '#10b981',
       isPublic: true,
     },
   });
@@ -613,8 +700,8 @@ async function main() {
     },
   });
 
-  // Create class instances for today and coming days
-  console.log('📆 Creating classes for the week...');
+  // Create class instances for the full week (Sun-Thu)
+  console.log('📆 Creating classes for the full week...');
   const now = new Date();
 
   // Helper to create date at specific hour
@@ -625,8 +712,10 @@ async function main() {
     return date;
   };
 
-  // Today's classes
-  const yogaMorningClass = await prisma.classInstance.create({
+  // === Tel Aviv branch schedule ===
+
+  // Sunday (day 0)
+  const tlvSunYoga = await prisma.classInstance.create({
     data: {
       branchId: branch.id,
       templateId: yogaMorning.id,
@@ -641,7 +730,7 @@ async function main() {
     },
   });
 
-  const pilatesClass = await prisma.classInstance.create({
+  const tlvSunPilates = await prisma.classInstance.create({
     data: {
       branchId: branch.id,
       coachId: coachProfile.id,
@@ -655,7 +744,7 @@ async function main() {
     },
   });
 
-  const hiitClass = await prisma.classInstance.create({
+  const tlvSunHiit = await prisma.classInstance.create({
     data: {
       branchId: branch.id,
       coachId: coach2Profile.id,
@@ -669,7 +758,7 @@ async function main() {
     },
   });
 
-  const yogaEveningClass = await prisma.classInstance.create({
+  const tlvSunYogaEve = await prisma.classInstance.create({
     data: {
       branchId: branch.id,
       coachId: coachProfile.id,
@@ -683,8 +772,8 @@ async function main() {
     },
   });
 
-  // Tomorrow's classes
-  const tomorrowYoga = await prisma.classInstance.create({
+  // Monday (day 1)
+  const tlvMonYoga = await prisma.classInstance.create({
     data: {
       branchId: branch.id,
       coachId: coachProfile.id,
@@ -697,147 +786,664 @@ async function main() {
     },
   });
 
-  const tomorrowHiit = await prisma.classInstance.create({
+  const tlvMonPilates = await prisma.classInstance.create({
+    data: {
+      branchId: branch.id,
+      coachId: coachProfile.id,
+      roomId: fitnessRoom.id,
+      name: 'פילאטיס',
+      startTime: createDateTime(1, 9, 0),
+      endTime: createDateTime(1, 9, 55),
+      capacity: 15,
+      waitlistLimit: 5,
+    },
+  });
+
+  const tlvMonHiit = await prisma.classInstance.create({
     data: {
       branchId: branch.id,
       coachId: coach2Profile.id,
       roomId: fitnessRoom.id,
-      name: 'HIIT מתקדמים',
-      startTime: createDateTime(1, 10, 0),
-      endTime: createDateTime(1, 10, 45),
+      name: 'HIIT',
+      startTime: createDateTime(1, 17, 0),
+      endTime: createDateTime(1, 17, 45),
+      capacity: 15,
+      waitlistLimit: 5,
+    },
+  });
+
+  // Tuesday (day 2)
+  const tlvTueYoga = await prisma.classInstance.create({
+    data: {
+      branchId: branch.id,
+      coachId: coachProfile.id,
+      roomId: yogaRoom.id,
+      name: 'יוגה בוקר',
+      startTime: createDateTime(2, 7, 0),
+      endTime: createDateTime(2, 8, 0),
+      capacity: 20,
+      waitlistLimit: 5,
+    },
+  });
+
+  const tlvTueHiit = await prisma.classInstance.create({
+    data: {
+      branchId: branch.id,
+      coachId: coach2Profile.id,
+      roomId: fitnessRoom.id,
+      name: 'HIIT',
+      startTime: createDateTime(2, 10, 0),
+      endTime: createDateTime(2, 10, 45),
+      capacity: 15,
+      waitlistLimit: 5,
+    },
+  });
+
+  const tlvTuePilates = await prisma.classInstance.create({
+    data: {
+      branchId: branch.id,
+      coachId: coachProfile.id,
+      roomId: fitnessRoom.id,
+      name: 'פילאטיס ערב',
+      startTime: createDateTime(2, 18, 0),
+      endTime: createDateTime(2, 18, 55),
+      capacity: 15,
+      waitlistLimit: 5,
+    },
+  });
+
+  // Wednesday (day 3)
+  const tlvWedYoga = await prisma.classInstance.create({
+    data: {
+      branchId: branch.id,
+      coachId: coachProfile.id,
+      roomId: yogaRoom.id,
+      name: 'יוגה בוקר',
+      startTime: createDateTime(3, 7, 0),
+      endTime: createDateTime(3, 8, 0),
+      capacity: 20,
+      waitlistLimit: 5,
+    },
+  });
+
+  const tlvWedPilates = await prisma.classInstance.create({
+    data: {
+      branchId: branch.id,
+      coachId: coachProfile.id,
+      roomId: fitnessRoom.id,
+      name: 'פילאטיס',
+      startTime: createDateTime(3, 9, 0),
+      endTime: createDateTime(3, 9, 55),
+      capacity: 15,
+      waitlistLimit: 5,
+    },
+  });
+
+  const tlvWedHiit = await prisma.classInstance.create({
+    data: {
+      branchId: branch.id,
+      coachId: coach2Profile.id,
+      roomId: fitnessRoom.id,
+      name: 'HIIT',
+      startTime: createDateTime(3, 17, 0),
+      endTime: createDateTime(3, 17, 45),
+      capacity: 15,
+      waitlistLimit: 5,
+    },
+  });
+
+  const tlvWedYogaEve = await prisma.classInstance.create({
+    data: {
+      branchId: branch.id,
+      coachId: coachProfile.id,
+      roomId: yogaRoom.id,
+      name: 'יוגה ערב',
+      startTime: createDateTime(3, 19, 0),
+      endTime: createDateTime(3, 20, 0),
+      capacity: 20,
+      waitlistLimit: 5,
+    },
+  });
+
+  // Thursday (day 4)
+  const tlvThuYoga = await prisma.classInstance.create({
+    data: {
+      branchId: branch.id,
+      coachId: coachProfile.id,
+      roomId: yogaRoom.id,
+      name: 'יוגה בוקר',
+      startTime: createDateTime(4, 7, 0),
+      endTime: createDateTime(4, 8, 0),
+      capacity: 20,
+      waitlistLimit: 5,
+    },
+  });
+
+  const tlvThuHiit = await prisma.classInstance.create({
+    data: {
+      branchId: branch.id,
+      coachId: coach2Profile.id,
+      roomId: fitnessRoom.id,
+      name: 'HIIT',
+      startTime: createDateTime(4, 10, 0),
+      endTime: createDateTime(4, 10, 45),
+      capacity: 15,
+      waitlistLimit: 5,
+    },
+  });
+
+  // === Jerusalem branch schedule ===
+
+  // Sunday (day 0)
+  const jlmSunYoga = await prisma.classInstance.create({
+    data: {
+      branchId: jlmBranch.id,
+      coachId: coach3Profile.id,
+      roomId: jlmYogaRoom.id,
+      name: 'יוגה בוקר',
+      startTime: createDateTime(0, 8, 0),
+      endTime: createDateTime(0, 9, 0),
+      capacity: 18,
+      waitlistLimit: 5,
+    },
+  });
+
+  const jlmSunPilates = await prisma.classInstance.create({
+    data: {
+      branchId: jlmBranch.id,
+      coachId: coach3Profile.id,
+      roomId: jlmYogaRoom.id,
+      name: 'פילאטיס',
+      startTime: createDateTime(0, 10, 0),
+      endTime: createDateTime(0, 10, 55),
+      capacity: 18,
+      waitlistLimit: 5,
+    },
+  });
+
+  const jlmSunHiit = await prisma.classInstance.create({
+    data: {
+      branchId: jlmBranch.id,
+      coachId: coach2Profile.id,
+      roomId: jlmEnergyRoom.id,
+      name: 'HIIT',
+      startTime: createDateTime(0, 17, 0),
+      endTime: createDateTime(0, 17, 45),
       capacity: 12,
       waitlistLimit: 3,
     },
   });
 
-  // Create some bookings with various statuses
+  // Monday (day 1)
+  const jlmMonYoga = await prisma.classInstance.create({
+    data: {
+      branchId: jlmBranch.id,
+      coachId: coach3Profile.id,
+      roomId: jlmYogaRoom.id,
+      name: 'יוגה בוקר',
+      startTime: createDateTime(1, 8, 0),
+      endTime: createDateTime(1, 9, 0),
+      capacity: 18,
+      waitlistLimit: 5,
+    },
+  });
+
+  const jlmMonPilates = await prisma.classInstance.create({
+    data: {
+      branchId: jlmBranch.id,
+      coachId: coach3Profile.id,
+      roomId: jlmYogaRoom.id,
+      name: 'פילאטיס ערב',
+      startTime: createDateTime(1, 18, 0),
+      endTime: createDateTime(1, 18, 55),
+      capacity: 18,
+      waitlistLimit: 5,
+    },
+  });
+
+  // Tuesday (day 2)
+  const jlmTueYoga = await prisma.classInstance.create({
+    data: {
+      branchId: jlmBranch.id,
+      coachId: coach3Profile.id,
+      roomId: jlmYogaRoom.id,
+      name: 'יוגה בוקר',
+      startTime: createDateTime(2, 8, 0),
+      endTime: createDateTime(2, 9, 0),
+      capacity: 18,
+      waitlistLimit: 5,
+    },
+  });
+
+  const jlmTueHiit = await prisma.classInstance.create({
+    data: {
+      branchId: jlmBranch.id,
+      coachId: coach2Profile.id,
+      roomId: jlmEnergyRoom.id,
+      name: 'HIIT',
+      startTime: createDateTime(2, 17, 0),
+      endTime: createDateTime(2, 17, 45),
+      capacity: 12,
+      waitlistLimit: 3,
+    },
+  });
+
+  // Wednesday (day 3)
+  const jlmWedYoga = await prisma.classInstance.create({
+    data: {
+      branchId: jlmBranch.id,
+      coachId: coach3Profile.id,
+      roomId: jlmYogaRoom.id,
+      name: 'יוגה בוקר',
+      startTime: createDateTime(3, 8, 0),
+      endTime: createDateTime(3, 9, 0),
+      capacity: 18,
+      waitlistLimit: 5,
+    },
+  });
+
+  const jlmWedPilates = await prisma.classInstance.create({
+    data: {
+      branchId: jlmBranch.id,
+      coachId: coach3Profile.id,
+      roomId: jlmYogaRoom.id,
+      name: 'פילאטיס',
+      startTime: createDateTime(3, 10, 0),
+      endTime: createDateTime(3, 10, 55),
+      capacity: 18,
+      waitlistLimit: 5,
+    },
+  });
+
+  // Thursday (day 4)
+  const jlmThuYoga = await prisma.classInstance.create({
+    data: {
+      branchId: jlmBranch.id,
+      coachId: coach3Profile.id,
+      roomId: jlmYogaRoom.id,
+      name: 'יוגה בוקר',
+      startTime: createDateTime(4, 8, 0),
+      endTime: createDateTime(4, 9, 0),
+      capacity: 18,
+      waitlistLimit: 5,
+    },
+  });
+
+  const jlmThuHiit = await prisma.classInstance.create({
+    data: {
+      branchId: jlmBranch.id,
+      coachId: coach2Profile.id,
+      roomId: jlmEnergyRoom.id,
+      name: 'HIIT',
+      startTime: createDateTime(4, 17, 0),
+      endTime: createDateTime(4, 17, 45),
+      capacity: 12,
+      waitlistLimit: 3,
+    },
+  });
+
+  // Create bookings with various statuses (~35 total)
   console.log('📝 Creating bookings...');
 
-  // Bookings for yoga morning (some checked in)
+  // === Sunday Tel Aviv bookings ===
+  // Yoga morning - confirmed with check-ins
   await prisma.booking.create({
     data: {
       customerId: customers[0].id,
-      classInstanceId: yogaMorningClass.id,
+      classInstanceId: tlvSunYoga.id,
       status: 'CONFIRMED',
       checkedInAt: createDateTime(0, 6, 55),
       source: 'web',
     },
   });
-
   await prisma.booking.create({
     data: {
       customerId: customers[1].id,
-      classInstanceId: yogaMorningClass.id,
+      classInstanceId: tlvSunYoga.id,
       status: 'CONFIRMED',
       checkedInAt: createDateTime(0, 6, 58),
       source: 'admin',
     },
   });
-
   await prisma.booking.create({
     data: {
       customerId: customers[5].id,
-      classInstanceId: yogaMorningClass.id,
+      classInstanceId: tlvSunYoga.id,
       status: 'CONFIRMED',
       source: 'web',
     },
   });
-
   await prisma.booking.create({
     data: {
       customerId: customers[6].id,
-      classInstanceId: yogaMorningClass.id,
+      classInstanceId: tlvSunYoga.id,
       status: 'CONFIRMED',
       source: 'web',
     },
   });
 
-  // Bookings for pilates
+  // Pilates Sunday
   await prisma.booking.create({
     data: {
       customerId: customers[1].id,
-      classInstanceId: pilatesClass.id,
+      classInstanceId: tlvSunPilates.id,
       status: 'CONFIRMED',
       source: 'web',
     },
   });
-
   await prisma.booking.create({
     data: {
       customerId: customers[6].id,
-      classInstanceId: pilatesClass.id,
+      classInstanceId: tlvSunPilates.id,
       status: 'CONFIRMED',
       source: 'app',
     },
   });
 
-  // Bookings for HIIT
+  // HIIT Sunday
   await prisma.booking.create({
     data: {
       customerId: customers[4].id,
-      classInstanceId: hiitClass.id,
+      classInstanceId: tlvSunHiit.id,
       status: 'CONFIRMED',
       source: 'web',
     },
   });
-
   await prisma.booking.create({
     data: {
       customerId: customers[7].id,
-      classInstanceId: hiitClass.id,
+      classInstanceId: tlvSunHiit.id,
       status: 'CONFIRMED',
       source: 'web',
     },
   });
+  // Waitlisted for HIIT
+  await prisma.booking.create({
+    data: {
+      customerId: customers[9].id,
+      classInstanceId: tlvSunHiit.id,
+      status: 'WAITLISTED',
+      waitlistPosition: 1,
+      source: 'app',
+    },
+  });
 
-  // Bookings for evening yoga
+  // Evening yoga Sunday
   await prisma.booking.create({
     data: {
       customerId: customers[0].id,
-      classInstanceId: yogaEveningClass.id,
+      classInstanceId: tlvSunYogaEve.id,
       status: 'CONFIRMED',
       source: 'web',
     },
   });
-
   await prisma.booking.create({
     data: {
       customerId: customers[2].id,
-      classInstanceId: yogaEveningClass.id,
+      classInstanceId: tlvSunYogaEve.id,
       status: 'CONFIRMED',
       source: 'admin',
     },
   });
-
   await prisma.booking.create({
     data: {
       customerId: customers[5].id,
-      classInstanceId: yogaEveningClass.id,
+      classInstanceId: tlvSunYogaEve.id,
       status: 'CONFIRMED',
       source: 'web',
     },
   });
 
-  // Tomorrow's bookings
+  // === Monday Tel Aviv bookings ===
   await prisma.booking.create({
     data: {
       customerId: customers[0].id,
-      classInstanceId: tomorrowYoga.id,
+      classInstanceId: tlvMonYoga.id,
       status: 'CONFIRMED',
       source: 'web',
     },
   });
-
+  await prisma.booking.create({
+    data: {
+      customerId: customers[6].id,
+      classInstanceId: tlvMonPilates.id,
+      status: 'CONFIRMED',
+      source: 'app',
+    },
+  });
+  // Cancelled booking
+  await prisma.booking.create({
+    data: {
+      customerId: customers[1].id,
+      classInstanceId: tlvMonPilates.id,
+      status: 'CANCELLED',
+      cancelledAt: createDateTime(0, 14, 0),
+      cancelReason: 'שינוי תוכניות',
+      source: 'web',
+    },
+  });
   await prisma.booking.create({
     data: {
       customerId: customers[4].id,
-      classInstanceId: tomorrowHiit.id,
+      classInstanceId: tlvMonHiit.id,
       status: 'CONFIRMED',
       source: 'web',
     },
   });
 
-  // Create payments
+  // === Tuesday Tel Aviv bookings ===
+  await prisma.booking.create({
+    data: {
+      customerId: customers[5].id,
+      classInstanceId: tlvTueYoga.id,
+      status: 'CONFIRMED',
+      source: 'web',
+    },
+  });
+  // No-show
+  await prisma.booking.create({
+    data: {
+      customerId: customers[8].id,
+      classInstanceId: tlvTueHiit.id,
+      status: 'NO_SHOW',
+      noShowAt: createDateTime(2, 10, 50),
+      source: 'web',
+    },
+  });
+  await prisma.booking.create({
+    data: {
+      customerId: customers[7].id,
+      classInstanceId: tlvTueHiit.id,
+      status: 'CONFIRMED',
+      source: 'app',
+    },
+  });
+  // Completed booking (past class)
+  await prisma.booking.create({
+    data: {
+      customerId: customers[1].id,
+      classInstanceId: tlvTuePilates.id,
+      status: 'COMPLETED',
+      checkedInAt: createDateTime(2, 17, 55),
+      source: 'web',
+    },
+  });
+
+  // === Wednesday Tel Aviv bookings ===
+  await prisma.booking.create({
+    data: {
+      customerId: customers[0].id,
+      classInstanceId: tlvWedYoga.id,
+      status: 'CONFIRMED',
+      source: 'web',
+    },
+  });
+  await prisma.booking.create({
+    data: {
+      customerId: customers[6].id,
+      classInstanceId: tlvWedPilates.id,
+      status: 'CONFIRMED',
+      source: 'web',
+    },
+  });
+  // Cancelled
+  await prisma.booking.create({
+    data: {
+      customerId: customers[4].id,
+      classInstanceId: tlvWedHiit.id,
+      status: 'CANCELLED',
+      cancelledAt: createDateTime(2, 20, 0),
+      cancelReason: 'לא מרגיש טוב',
+      source: 'web',
+    },
+  });
+  await prisma.booking.create({
+    data: {
+      customerId: customers[7].id,
+      classInstanceId: tlvWedHiit.id,
+      status: 'CONFIRMED',
+      source: 'web',
+    },
+  });
+  // Waitlisted for evening yoga
+  await prisma.booking.create({
+    data: {
+      customerId: customers[9].id,
+      classInstanceId: tlvWedYogaEve.id,
+      status: 'WAITLISTED',
+      waitlistPosition: 1,
+      source: 'web',
+    },
+  });
+  await prisma.booking.create({
+    data: {
+      customerId: customers[0].id,
+      classInstanceId: tlvWedYogaEve.id,
+      status: 'CONFIRMED',
+      source: 'web',
+    },
+  });
+
+  // === Thursday Tel Aviv bookings ===
+  await prisma.booking.create({
+    data: {
+      customerId: customers[5].id,
+      classInstanceId: tlvThuYoga.id,
+      status: 'CONFIRMED',
+      source: 'app',
+    },
+  });
+  // No-show
+  await prisma.booking.create({
+    data: {
+      customerId: customers[2].id,
+      classInstanceId: tlvThuYoga.id,
+      status: 'NO_SHOW',
+      noShowAt: createDateTime(4, 8, 5),
+      source: 'admin',
+    },
+  });
+  await prisma.booking.create({
+    data: {
+      customerId: customers[4].id,
+      classInstanceId: tlvThuHiit.id,
+      status: 'CONFIRMED',
+      source: 'web',
+    },
+  });
+
+  // === Jerusalem branch bookings ===
+  // Sunday
+  await prisma.booking.create({
+    data: {
+      customerId: customers[6].id,
+      classInstanceId: jlmSunYoga.id,
+      status: 'COMPLETED',
+      checkedInAt: createDateTime(0, 7, 55),
+      source: 'web',
+    },
+  });
+  await prisma.booking.create({
+    data: {
+      customerId: customers[1].id,
+      classInstanceId: jlmSunPilates.id,
+      status: 'COMPLETED',
+      checkedInAt: createDateTime(0, 9, 50),
+      source: 'app',
+    },
+  });
+  await prisma.booking.create({
+    data: {
+      customerId: customers[7].id,
+      classInstanceId: jlmSunHiit.id,
+      status: 'CONFIRMED',
+      source: 'web',
+    },
+  });
+
+  // Monday Jerusalem
+  await prisma.booking.create({
+    data: {
+      customerId: customers[5].id,
+      classInstanceId: jlmMonYoga.id,
+      status: 'CONFIRMED',
+      source: 'web',
+    },
+  });
+  // Cancelled
+  await prisma.booking.create({
+    data: {
+      customerId: customers[9].id,
+      classInstanceId: jlmMonPilates.id,
+      status: 'CANCELLED',
+      cancelledAt: createDateTime(1, 12, 0),
+      cancelReason: 'התנגשות בלוח זמנים',
+      source: 'web',
+    },
+  });
+
+  // Tuesday Jerusalem
+  await prisma.booking.create({
+    data: {
+      customerId: customers[0].id,
+      classInstanceId: jlmTueYoga.id,
+      status: 'CONFIRMED',
+      source: 'app',
+    },
+  });
+  // Waitlisted
+  await prisma.booking.create({
+    data: {
+      customerId: customers[8].id,
+      classInstanceId: jlmTueHiit.id,
+      status: 'WAITLISTED',
+      waitlistPosition: 2,
+      source: 'web',
+    },
+  });
+
+  // Wednesday Jerusalem
+  await prisma.booking.create({
+    data: {
+      customerId: customers[6].id,
+      classInstanceId: jlmWedYoga.id,
+      status: 'CONFIRMED',
+      source: 'web',
+    },
+  });
+
+  // Thursday Jerusalem - completed
+  await prisma.booking.create({
+    data: {
+      customerId: customers[5].id,
+      classInstanceId: jlmThuYoga.id,
+      status: 'COMPLETED',
+      checkedInAt: createDateTime(4, 7, 50),
+      source: 'web',
+    },
+  });
+
+  // Create payments (~10 total)
   console.log('💰 Creating payments...');
   await prisma.payment.create({
     data: {
@@ -903,6 +1509,54 @@ async function main() {
     },
   });
 
+  await prisma.payment.create({
+    data: {
+      customerId: customers[5].id,
+      amount: 350,
+      currency: 'ILS',
+      status: 'COMPLETED',
+      description: 'מנוי חודשי',
+      createdAt: createDateTime(-2, 9, 0),
+    },
+  });
+
+  await prisma.payment.create({
+    data: {
+      customerId: customers[6].id,
+      amount: 60,
+      currency: 'ILS',
+      status: 'COMPLETED',
+      description: 'יוגה - שיעור בודד',
+      createdAt: createDateTime(-1, 8, 0),
+    },
+  });
+
+  // Failed payment
+  await prisma.payment.create({
+    data: {
+      customerId: customers[3].id,
+      amount: 350,
+      currency: 'ILS',
+      status: 'FAILED',
+      description: 'מנוי חודשי - כרטיס נדחה',
+      createdAt: createDateTime(-1, 15, 0),
+    },
+  });
+
+  // Refunded payment
+  await prisma.payment.create({
+    data: {
+      customerId: customers[1].id,
+      amount: 65,
+      currency: 'ILS',
+      status: 'REFUNDED',
+      description: 'פילאטיס - שיעור בוטל',
+      refundedAmount: 65,
+      refundReason: 'שיעור בוטל על ידי הסטודיו',
+      createdAt: createDateTime(-4, 11, 0),
+    },
+  });
+
   // Create audit logs for recent activity
   console.log('📜 Creating audit logs...');
 
@@ -916,6 +1570,15 @@ async function main() {
       entityId: tenant.id,
       newValues: { name: tenant.name },
       createdAt: createDateTime(-7, 9, 0),
+    },
+    {
+      tenantId: tenant.id,
+      userId: regionalUser.id,
+      action: 'branch.create',
+      entityType: 'branch',
+      entityId: jlmBranch.id,
+      newValues: { name: 'סניף ירושלים', city: 'ירושלים' },
+      createdAt: createDateTime(-6, 10, 0),
     },
     {
       tenantId: tenant.id,
@@ -987,6 +1650,27 @@ async function main() {
       action: 'user.login',
       createdAt: createDateTime(0, 6, 30),
     },
+    {
+      tenantId: tenant.id,
+      userId: regionalUser.id,
+      action: 'user.login',
+      createdAt: createDateTime(0, 8, 15),
+    },
+    {
+      tenantId: tenant.id,
+      userId: coach3User.id,
+      action: 'user.login',
+      createdAt: createDateTime(0, 7, 30),
+    },
+    {
+      tenantId: tenant.id,
+      userId: regionalUser.id,
+      action: 'branch.update',
+      entityType: 'branch',
+      entityId: jlmBranch.id,
+      newValues: { action: 'עדכון לוח שיעורים ירושלים' },
+      createdAt: createDateTime(-2, 14, 0),
+    },
   ];
 
   for (const log of auditLogs) {
@@ -998,19 +1682,22 @@ async function main() {
   console.log('   Email:    admin@rafit.com');
   console.log('   Password: SuperAdmin123!');
   console.log('\n📧 Demo staff accounts (Password: Demo1234!):');
-  console.log('   Owner:      owner@demo.com');
-  console.log('   Admin:      admin@demo.com');
-  console.log('   Coach:      coach@demo.com');
-  console.log('   Coach 2:    coach2@demo.com');
-  console.log('   FrontDesk:  frontdesk@demo.com');
-  console.log('   Accountant: accountant@demo.com');
+  console.log('   Owner:           owner@demo.com');
+  console.log('   Admin:           admin@demo.com');
+  console.log('   Regional Mgr:   regional@demo.com');
+  console.log('   Coach:           coach@demo.com');
+  console.log('   Coach 2:         coach2@demo.com');
+  console.log('   Coach 3:         coach3@demo.com');
+  console.log('   FrontDesk:       frontdesk@demo.com');
+  console.log('   Accountant:      accountant@demo.com');
   console.log('\n🏋️ Portal customer account (Password: Demo1234!):');
   console.log('   Customer:   customer1@demo.com  (רחל דוידוביץ)');
   console.log('\n📊 Demo data created:');
+  console.log('   - 2 branches (Tel Aviv + Jerusalem)');
   console.log('   - 10 customers');
-  console.log('   - 6 classes today + 2 tomorrow');
-  console.log('   - Multiple bookings with check-ins');
-  console.log('   - 6 payments (4 completed, 2 pending)');
+  console.log('   - 27 class instances across the week (Sun-Thu)');
+  console.log('   - ~35 bookings (confirmed, waitlisted, cancelled, no-show, completed)');
+  console.log('   - 10 payments (6 completed, 2 pending, 1 failed, 1 refunded)');
   console.log('   - Activity logs for the feed');
 }
 

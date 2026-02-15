@@ -109,6 +109,83 @@ describe('RBAC', () => {
     });
   });
 
+  describe('REGIONAL_MANAGER permissions', () => {
+    it('should have branch management permissions', () => {
+      expect(hasPermission(UserRole.REGIONAL_MANAGER, 'branch:create')).toBe(true);
+      expect(hasPermission(UserRole.REGIONAL_MANAGER, 'branch:delete')).toBe(true);
+    });
+
+    it('should have staff management permissions', () => {
+      expect(hasPermission(UserRole.REGIONAL_MANAGER, 'staff:create')).toBe(true);
+      expect(hasPermission(UserRole.REGIONAL_MANAGER, 'staff:delete')).toBe(true);
+    });
+
+    it('should have customer management permissions', () => {
+      expect(hasPermission(UserRole.REGIONAL_MANAGER, 'customer:delete')).toBe(true);
+      expect(hasPermission(UserRole.REGIONAL_MANAGER, 'customer:export')).toBe(true);
+    });
+
+    it('should have automation permissions', () => {
+      expect(hasPermission(UserRole.REGIONAL_MANAGER, 'automation:create')).toBe(true);
+      expect(hasPermission(UserRole.REGIONAL_MANAGER, 'automation:delete')).toBe(true);
+    });
+
+    it('should have report permissions', () => {
+      expect(hasPermission(UserRole.REGIONAL_MANAGER, 'report:revenue')).toBe(true);
+      expect(hasPermission(UserRole.REGIONAL_MANAGER, 'report:export')).toBe(true);
+    });
+
+    it('should NOT have tenant management permissions', () => {
+      expect(hasPermission(UserRole.REGIONAL_MANAGER, 'tenant:update')).toBe(false);
+      expect(hasPermission(UserRole.REGIONAL_MANAGER, 'tenant:delete')).toBe(false);
+      expect(hasPermission(UserRole.REGIONAL_MANAGER, 'tenant:billing')).toBe(false);
+    });
+
+    it('should NOT have user update/delete/role permissions', () => {
+      expect(hasPermission(UserRole.REGIONAL_MANAGER, 'user:update')).toBe(false);
+      expect(hasPermission(UserRole.REGIONAL_MANAGER, 'user:delete')).toBe(false);
+      expect(hasPermission(UserRole.REGIONAL_MANAGER, 'user:role')).toBe(false);
+    });
+
+    it('should NOT have audit:read permission', () => {
+      expect(hasPermission(UserRole.REGIONAL_MANAGER, 'audit:read')).toBe(false);
+    });
+  });
+
+  describe('REGIONAL_MANAGER hierarchy', () => {
+    it('should be outranked by ADMIN', () => {
+      expect(roleOutranks(UserRole.ADMIN, UserRole.REGIONAL_MANAGER)).toBe(true);
+    });
+
+    it('should outrank MANAGER', () => {
+      expect(roleOutranks(UserRole.REGIONAL_MANAGER, UserRole.MANAGER)).toBe(true);
+    });
+  });
+
+  describe('REGIONAL_MANAGER assignable roles', () => {
+    it('OWNER should be able to assign REGIONAL_MANAGER', () => {
+      const roles = getAssignableRoles(UserRole.OWNER);
+      expect(roles).toContain(UserRole.REGIONAL_MANAGER);
+    });
+
+    it('ADMIN should be able to assign REGIONAL_MANAGER', () => {
+      const roles = getAssignableRoles(UserRole.ADMIN);
+      expect(roles).toContain(UserRole.REGIONAL_MANAGER);
+    });
+
+    it('REGIONAL_MANAGER should be able to assign MANAGER and COACH', () => {
+      const roles = getAssignableRoles(UserRole.REGIONAL_MANAGER);
+      expect(roles).toContain(UserRole.MANAGER);
+      expect(roles).toContain(UserRole.COACH);
+    });
+
+    it('REGIONAL_MANAGER should NOT be able to assign ADMIN or itself', () => {
+      const roles = getAssignableRoles(UserRole.REGIONAL_MANAGER);
+      expect(roles).not.toContain(UserRole.ADMIN);
+      expect(roles).not.toContain(UserRole.REGIONAL_MANAGER);
+    });
+  });
+
   describe('ROLE_PERMISSIONS', () => {
     it('should have owner with all permissions', () => {
       const ownerPermissions = ROLE_PERMISSIONS[UserRole.OWNER];

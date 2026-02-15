@@ -18,6 +18,7 @@ export function RoleBasedDashboard({ role }: RoleBasedDashboardProps) {
   switch (role) {
     case 'OWNER':
     case 'ADMIN':
+    case 'REGIONAL_MANAGER':
       return <AdminDashboard />;
 
     case 'MANAGER':

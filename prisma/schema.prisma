@@ -17,13 +17,14 @@ datasource db {
 // =====================================================
 
 enum UserRole {
-  OWNER       // Full access including billing and delete
-  ADMIN       // Full operational access
-  MANAGER     // Branch-level management
-  COACH       // Schedule view, own classes
-  FRONT_DESK  // Check-in, booking, basic CRM
-  ACCOUNTANT  // Financial reports, read-only operations
-  READ_ONLY   // View-only access
+  OWNER            // Full access including billing and delete
+  ADMIN            // Full operational access
+  REGIONAL_MANAGER // Multi-branch management
+  MANAGER          // Branch-level management
+  COACH            // Schedule view, own classes
+  FRONT_DESK       // Check-in, booking, basic CRM
+  ACCOUNTANT       // Financial reports, read-only operations
+  READ_ONLY        // View-only access
 }
 
 enum TenantStatus {
