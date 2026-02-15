@@ -87,7 +87,7 @@ interface LeadsResponse {
 const STATUS_CONFIG: Record<LeadStatus, { label: string; color: string }> = {
   NEW: { label: 'חדש', color: 'bg-blue-100 text-blue-800' },
   CONTACTED: { label: 'נוצר קשר', color: 'bg-amber-100 text-amber-800' },
-  QUALIFIED: { label: 'מוסמך', color: 'bg-purple-100 text-purple-800' },
+  QUALIFIED: { label: 'פוטנציאלי', color: 'bg-purple-100 text-purple-800' },
   TRIAL: { label: 'ניסיון', color: 'bg-green-100 text-green-800' },
   CONVERTED: { label: 'הומר', color: 'bg-emerald-100 text-emerald-800' },
   LOST: { label: 'אבוד', color: 'bg-red-100 text-red-800' },
@@ -106,7 +106,7 @@ const STATUS_FILTER_TABS: { value: string; label: string }[] = [
   { value: 'all', label: 'הכל' },
   { value: 'NEW', label: 'חדש' },
   { value: 'CONTACTED', label: 'נוצר קשר' },
-  { value: 'QUALIFIED', label: 'מוסמך' },
+  { value: 'QUALIFIED', label: 'פוטנציאלי' },
   { value: 'TRIAL', label: 'ניסיון' },
   { value: 'LOST', label: 'אבוד' },
 ];
@@ -269,7 +269,7 @@ export default function LeadsPage() {
             </div>
             <div>
               <p className="text-2xl font-bold">{(statusCounts['QUALIFIED'] || 0) + (statusCounts['TRIAL'] || 0)}</p>
-              <p className="text-sm text-muted-foreground">מוסמכים + ניסיון</p>
+              <p className="text-sm text-muted-foreground">פוטנציאליים + ניסיון</p>
             </div>
           </CardContent>
         </Card>

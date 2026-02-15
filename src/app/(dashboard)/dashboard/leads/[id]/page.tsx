@@ -86,7 +86,7 @@ interface MembershipPlan {
 const STATUS_CONFIG: Record<LeadStatus, { label: string; color: string }> = {
   NEW: { label: 'חדש', color: 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300' },
   CONTACTED: { label: 'נוצר קשר', color: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' },
-  QUALIFIED: { label: 'מוסמך', color: 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300' },
+  QUALIFIED: { label: 'פוטנציאלי', color: 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300' },
   TRIAL: { label: 'ניסיון', color: 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300' },
   CONVERTED: { label: 'הומר', color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' },
   LOST: { label: 'אבוד', color: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300' },
