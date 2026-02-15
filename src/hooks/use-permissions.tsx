@@ -86,9 +86,9 @@ export function usePermissions() {
   /**
    * Check if user is manager or higher.
    */
-  const isRegionalManager = isAdmin || role === 'REGIONAL_MANAGER';
+  const isNetworkManager = isAdmin || role === 'NETWORK_MANAGER';
 
-  const isManager = isAdmin || role === 'REGIONAL_MANAGER' || role === 'MANAGER';
+  const isManager = isAdmin || role === 'NETWORK_MANAGER' || role === 'MANAGER';
 
   return {
     // State
@@ -108,7 +108,7 @@ export function usePermissions() {
     assignableRoles,
     isOwner,
     isAdmin,
-    isRegionalManager,
+    isNetworkManager,
     isManager,
 
     // Session data

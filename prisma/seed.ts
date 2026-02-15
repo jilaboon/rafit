@@ -149,7 +149,7 @@ async function main() {
     },
   });
 
-  const regionalUser = await prisma.user.create({
+  const networkUser = await prisma.user.create({
     data: {
       email: 'regional@demo.com',
       passwordHash,
@@ -230,8 +230,8 @@ async function main() {
   await prisma.tenantUser.create({
     data: {
       tenantId: tenant.id,
-      userId: regionalUser.id,
-      role: UserRole.REGIONAL_MANAGER,
+      userId: networkUser.id,
+      role: UserRole.NETWORK_MANAGER,
       isActive: true,
     },
   });
@@ -1573,7 +1573,7 @@ async function main() {
     },
     {
       tenantId: tenant.id,
-      userId: regionalUser.id,
+      userId: networkUser.id,
       action: 'branch.create',
       entityType: 'branch',
       entityId: jlmBranch.id,
@@ -1652,7 +1652,7 @@ async function main() {
     },
     {
       tenantId: tenant.id,
-      userId: regionalUser.id,
+      userId: networkUser.id,
       action: 'user.login',
       createdAt: createDateTime(0, 8, 15),
     },
@@ -1664,7 +1664,7 @@ async function main() {
     },
     {
       tenantId: tenant.id,
-      userId: regionalUser.id,
+      userId: networkUser.id,
       action: 'branch.update',
       entityType: 'branch',
       entityId: jlmBranch.id,
@@ -1684,7 +1684,7 @@ async function main() {
   console.log('\n📧 Demo staff accounts (Password: Demo1234!):');
   console.log('   Owner:           owner@demo.com');
   console.log('   Admin:           admin@demo.com');
-  console.log('   Regional Mgr:   regional@demo.com');
+  console.log('   Network Mgr:   regional@demo.com');
   console.log('   Coach:           coach@demo.com');
   console.log('   Coach 2:         coach2@demo.com');
   console.log('   Coach 3:         coach3@demo.com');

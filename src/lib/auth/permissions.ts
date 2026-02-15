@@ -134,7 +134,7 @@ export async function requireRole(minRole: UserRole) {
   const roleHierarchy: Record<UserRole, number> = {
     OWNER: 100,
     ADMIN: 90,
-    REGIONAL_MANAGER: 80,
+    NETWORK_MANAGER: 80,
     MANAGER: 70,
     COACH: 50,
     FRONT_DESK: 40,

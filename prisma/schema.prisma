@@ -19,7 +19,7 @@ datasource db {
 enum UserRole {
   OWNER            // Full access including billing and delete
   ADMIN            // Full operational access
-  REGIONAL_MANAGER // Multi-branch management
+  NETWORK_MANAGER  // Multi-branch / chain management
   MANAGER          // Branch-level management
   COACH            // Schedule view, own classes
   FRONT_DESK       // Check-in, booking, basic CRM

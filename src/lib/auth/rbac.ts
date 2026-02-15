@@ -140,7 +140,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'audit:read',
   ],
 
-  REGIONAL_MANAGER: [
+  NETWORK_MANAGER: [
     'branch:create',
     'branch:read',
     'branch:update',
@@ -301,7 +301,7 @@ export function getEffectivePermissions(
 export const ROLE_HIERARCHY: Record<UserRole, number> = {
   OWNER: 100,
   ADMIN: 90,
-  REGIONAL_MANAGER: 80,
+  NETWORK_MANAGER: 80,
   MANAGER: 70,
   COACH: 50,
   FRONT_DESK: 40,
@@ -326,7 +326,7 @@ export function getAssignableRoles(role: UserRole): UserRole[] {
 export const ROLE_LABELS: Record<UserRole, string> = {
   OWNER: 'בעלים',
   ADMIN: 'מנהל ראשי',
-  REGIONAL_MANAGER: 'מנהל אזורי',
+  NETWORK_MANAGER: 'מנהל רשת',
   MANAGER: 'מנהל',
   COACH: 'מדריך',
   FRONT_DESK: 'קבלה',

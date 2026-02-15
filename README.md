@@ -92,7 +92,7 @@ RAFIT is a modern, multi-tenant SaaS platform designed for fitness and wellness 
 |------|-------|----------|
 | Owner | owner@demo.com | Demo1234! |
 | Admin | admin@demo.com | Demo1234! |
-| Regional Manager | regional@demo.com | Demo1234! |
+| Network Manager | regional@demo.com | Demo1234! |
 | Coach | coach@demo.com | Demo1234! |
 | Front Desk | frontdesk@demo.com | Demo1234! |
 

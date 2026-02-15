@@ -122,7 +122,7 @@ export async function PUT(
     }
 
     // Check if user has a coach-like role
-    const coachRoles = ['OWNER', 'ADMIN', 'REGIONAL_MANAGER', 'MANAGER', 'COACH'];
+    const coachRoles = ['OWNER', 'ADMIN', 'NETWORK_MANAGER', 'MANAGER', 'COACH'];
     if (!coachRoles.includes(tenantUser.role)) {
       return NextResponse.json(
         { error: 'Only coaches and managers can have staff profiles' },

@@ -134,7 +134,7 @@ export type TenantCreateInput = z.infer<typeof tenantCreateSchema>;
 export const userInviteSchema = z.object({
   email: emailSchema,
   name: nameSchema,
-  role: z.enum(['ADMIN', 'REGIONAL_MANAGER', 'MANAGER', 'COACH', 'FRONT_DESK', 'ACCOUNTANT', 'READ_ONLY']),
+  role: z.enum(['ADMIN', 'NETWORK_MANAGER', 'MANAGER', 'COACH', 'FRONT_DESK', 'ACCOUNTANT', 'READ_ONLY']),
 });
 
 export type UserInviteInput = z.infer<typeof userInviteSchema>;

@@ -114,7 +114,7 @@ export default function TeamPage() {
   };
 
   // Roles that can have staff profiles
-  const staffRoles: UserRole[] = ['OWNER', 'ADMIN', 'REGIONAL_MANAGER', 'MANAGER', 'COACH'];
+  const staffRoles: UserRole[] = ['OWNER', 'ADMIN', 'NETWORK_MANAGER', 'MANAGER', 'COACH'];
 
   const assignableRoles = role ? getAssignableRoles(role as UserRole) : [];
   const canInvite = can('user:create');
@@ -426,7 +426,7 @@ function EditRoleDialog({
 
   // Include current role in the list if it's assignable or user is owner
   const availableRoles = currentUserRole === 'OWNER'
-    ? (['ADMIN', 'REGIONAL_MANAGER', 'MANAGER', 'COACH', 'FRONT_DESK', 'ACCOUNTANT', 'READ_ONLY'] as UserRole[])
+    ? (['ADMIN', 'NETWORK_MANAGER', 'MANAGER', 'COACH', 'FRONT_DESK', 'ACCOUNTANT', 'READ_ONLY'] as UserRole[])
     : assignableRoles;
 
   const handleSubmit = async (e: React.FormEvent) => {
