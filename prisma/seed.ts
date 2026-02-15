@@ -162,6 +162,17 @@ async function main() {
     },
   });
 
+  const managerUser = await prisma.user.create({
+    data: {
+      email: 'manager@demo.com',
+      passwordHash,
+      name: 'רון כהן',
+      phone: '050-9999999',
+      emailVerifiedAt: new Date(),
+      status: 'ACTIVE',
+    },
+  });
+
   const coach3User = await prisma.user.create({
     data: {
       email: 'coach3@demo.com',
@@ -234,6 +245,15 @@ async function main() {
       tenantId: tenant.id,
       userId: networkUser.id,
       role: UserRole.NETWORK_MANAGER,
+      isActive: true,
+    },
+  });
+
+  await prisma.tenantUser.create({
+    data: {
+      tenantId: tenant.id,
+      userId: managerUser.id,
+      role: UserRole.MANAGER,
       isActive: true,
     },
   });
