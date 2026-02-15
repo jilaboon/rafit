@@ -151,7 +151,7 @@ async function main() {
 
   const networkUser = await prisma.user.create({
     data: {
-      email: 'regional@demo.com',
+      email: 'network@demo.com',
       passwordHash,
       name: 'אלון ברק',
       phone: '050-7777777',
@@ -1684,7 +1684,7 @@ async function main() {
   console.log('\n📧 Demo staff accounts (Password: Demo1234!):');
   console.log('   Owner:           owner@demo.com');
   console.log('   Admin:           admin@demo.com');
-  console.log('   Network Mgr:   regional@demo.com');
+  console.log('   Network Mgr:   network@demo.com');
   console.log('   Coach:           coach@demo.com');
   console.log('   Coach 2:         coach2@demo.com');
   console.log('   Coach 3:         coach3@demo.com');
