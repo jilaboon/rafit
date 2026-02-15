@@ -13,7 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, Check, Clock, Users, UserCheck, AlertCircle, Loader2 } from 'lucide-react';
+import { Search, Check, Clock, Users, UserCheck, AlertCircle, AlertTriangle, Cake, Loader2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { cn, getInitials, formatTime } from '@/lib/utils';
 
 interface ClassInfo {
@@ -40,12 +41,15 @@ interface Attendee {
   membershipType: string;
   checkedIn: boolean;
   checkedInAt?: string;
+  isBirthday?: boolean;
+  medicalNotes?: string | null;
 }
 
 export default function CheckinPage() {
   const queryClient = useQueryClient();
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [expandedMedical, setExpandedMedical] = useState<Set<string>>(new Set());
 
   // Fetch today's classes
   const { data: classesData, isLoading } = useQuery<{ classes: ClassInfo[] }>({
@@ -293,58 +297,99 @@ export default function CheckinPage() {
                     <div
                       key={attendee.id}
                       className={cn(
-                        'flex items-center justify-between rounded-lg border p-4 transition-colors',
+                        'rounded-lg border p-4 transition-colors',
                         attendee.checkedIn
                           ? 'border-success/50 bg-success/5'
                           : 'hover:bg-muted/50'
                       )}
                     >
-                      <div className="flex items-center gap-4">
-                        <Avatar className="h-12 w-12">
-                          <AvatarFallback
-                            className={cn(
-                              attendee.checkedIn ? 'bg-success text-success-foreground' : ''
-                            )}
-                          >
-                            {attendee.checkedIn ? (
-                              <Check className="h-5 w-5" />
-                            ) : (
-                              getInitials(attendee.name)
-                            )}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium">{attendee.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {attendee.membershipType}
-                          </p>
-                          {attendee.checkedIn && attendee.checkedInAt && (
-                            <p className="text-xs text-success">
-                              נכנס ב-{formatTime(new Date(attendee.checkedInAt))}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <Avatar className="h-12 w-12">
+                            <AvatarFallback
+                              className={cn(
+                                attendee.checkedIn ? 'bg-success text-success-foreground' : ''
+                              )}
+                            >
+                              {attendee.checkedIn ? (
+                                <Check className="h-5 w-5" />
+                              ) : (
+                                getInitials(attendee.name)
+                              )}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium">{attendee.name}</p>
+                              {attendee.isBirthday && (
+                                <Badge variant="secondary" className="bg-pink-100 text-pink-700 dark:bg-pink-950 dark:text-pink-300">
+                                  <Cake className="ml-1 h-3 w-3" />
+                                  יום הולדת!
+                                </Badge>
+                              )}
+                              {attendee.medicalNotes && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setExpandedMedical((prev) => {
+                                      const next = new Set(prev);
+                                      if (next.has(attendee.id)) {
+                                        next.delete(attendee.id);
+                                      } else {
+                                        next.add(attendee.id);
+                                      }
+                                      return next;
+                                    });
+                                  }}
+                                  className="flex items-center gap-1 rounded-md bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700 hover:bg-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:hover:bg-amber-900"
+                                  title="הערות רפואיות"
+                                >
+                                  <AlertTriangle className="h-3 w-3" />
+                                  הגבלה רפואית
+                                </button>
+                              )}
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {attendee.membershipType}
                             </p>
-                          )}
+                            {attendee.checkedIn && attendee.checkedInAt && (
+                              <p className="text-xs text-success">
+                                נכנס ב-{formatTime(new Date(attendee.checkedInAt))}
+                              </p>
+                            )}
+                          </div>
                         </div>
+
+                        {attendee.checkedIn ? (
+                          <span className="flex items-center gap-2 text-sm text-success">
+                            <Check className="h-4 w-4" />
+                            נכח
+                          </span>
+                        ) : (
+                          <Button
+                            variant="default"
+                            size="lg"
+                            onClick={() => handleCheckin(attendee.bookingId)}
+                            disabled={checkingIn === attendee.bookingId}
+                          >
+                            {checkingIn === attendee.bookingId ? (
+                              <Loader2 className="ml-2 h-5 w-5 animate-spin" />
+                            ) : (
+                              <Check className="ml-2 h-5 w-5" />
+                            )}
+                            צ&apos;ק-אין
+                          </Button>
+                        )}
                       </div>
 
-                      {attendee.checkedIn ? (
-                        <span className="flex items-center gap-2 text-sm text-success">
-                          <Check className="h-4 w-4" />
-                          נכח
-                        </span>
-                      ) : (
-                        <Button
-                          variant="default"
-                          size="lg"
-                          onClick={() => handleCheckin(attendee.bookingId)}
-                          disabled={checkingIn === attendee.bookingId}
-                        >
-                          {checkingIn === attendee.bookingId ? (
-                            <Loader2 className="ml-2 h-5 w-5 animate-spin" />
-                          ) : (
-                            <Check className="ml-2 h-5 w-5" />
-                          )}
-                          צ&apos;ק-אין
-                        </Button>
+                      {/* Expanded medical notes */}
+                      {attendee.medicalNotes && expandedMedical.has(attendee.id) && (
+                        <div className="mt-3 mr-16 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
+                          <div className="flex items-start gap-2">
+                            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                            <p>{attendee.medicalNotes}</p>
+                          </div>
+                        </div>
                       )}
                     </div>
                   ))

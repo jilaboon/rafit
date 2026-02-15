@@ -15,6 +15,7 @@ const createCustomerSchema = z.object({
   emergencyContact: z.string().optional(),
   emergencyPhone: z.string().optional(),
   notes: z.string().optional(),
+  medicalNotes: z.string().optional(),
   tags: z.array(z.string()).default([]),
   source: z.string().optional(),
   marketingConsent: z.boolean().default(false),

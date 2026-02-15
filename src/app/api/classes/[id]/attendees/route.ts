@@ -60,6 +60,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
                 lastName: true,
                 email: true,
                 phone: true,
+                dateOfBirth: true,
+                medicalNotes: true,
               },
             },
           },
@@ -96,6 +98,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     );
 
     // Format attendees
+    const today = new Date();
+    const todayMonth = today.getMonth();
+    const todayDay = today.getDate();
+
     const attendees = classInstance.bookings.map((booking) => {
       const membership = membershipMap.get(booking.customerId);
       let membershipType = 'ללא מנוי';
@@ -110,6 +116,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         }
       }
 
+      // Check if today is the customer's birthday
+      let isBirthday = false;
+      if (booking.customer.dateOfBirth) {
+        const dob = new Date(booking.customer.dateOfBirth);
+        isBirthday = dob.getMonth() === todayMonth && dob.getDate() === todayDay;
+      }
+
       return {
         id: booking.customer.id,
         bookingId: booking.id,
@@ -120,6 +133,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         checkedIn: !!booking.checkedInAt,
         checkedInAt: booking.checkedInAt,
         status: booking.status,
+        isBirthday,
+        medicalNotes: booking.customer.medicalNotes,
       };
     });
 

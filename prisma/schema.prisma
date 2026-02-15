@@ -439,6 +439,7 @@ model Customer {
   emergencyContact String?    @map("emergency_contact")
   emergencyPhone String?      @map("emergency_phone")
   notes         String?
+  medicalNotes  String?       @map("medical_notes")
   tags          String[]      @default([])
   source        String?       // How they found us
   leadStatus    LeadStatus    @default(NEW) @map("lead_status")

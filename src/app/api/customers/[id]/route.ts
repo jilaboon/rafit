@@ -19,6 +19,7 @@ const updateCustomerSchema = z.object({
   emergencyContact: z.string().optional().nullable(),
   emergencyPhone: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
+  medicalNotes: z.string().optional().nullable(),
   tags: z.array(z.string()).optional(),
   source: z.string().optional().nullable(),
   leadStatus: z.enum(['NEW', 'CONTACTED', 'QUALIFIED', 'CONVERTED', 'LOST']).optional(),
@@ -159,6 +160,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if (data.emergencyContact !== undefined) updateData.emergencyContact = data.emergencyContact;
     if (data.emergencyPhone !== undefined) updateData.emergencyPhone = data.emergencyPhone;
     if (data.notes !== undefined) updateData.notes = data.notes;
+    if (data.medicalNotes !== undefined) updateData.medicalNotes = data.medicalNotes;
     if (data.tags !== undefined) updateData.tags = data.tags;
     if (data.source !== undefined) updateData.source = data.source;
     if (data.leadStatus !== undefined) updateData.leadStatus = data.leadStatus;
