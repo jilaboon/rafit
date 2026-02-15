@@ -43,12 +43,36 @@ export async function POST(
       );
     }
 
-    // Only QUALIFIED or TRIAL leads can be converted
-    if (lead.leadStatus !== 'QUALIFIED' && lead.leadStatus !== 'TRIAL') {
+    // Cannot convert already converted or lost leads
+    if (lead.leadStatus === 'CONVERTED') {
       return NextResponse.json(
-        { error: 'ניתן להמיר רק לידים בסטטוס מוסמך או ניסיון' },
+        { error: 'ליד זה כבר הומר ללקוח' },
         { status: 400 }
       );
+    }
+    if (lead.leadStatus === 'LOST') {
+      return NextResponse.json(
+        { error: 'לא ניתן להמיר ליד אבוד. שנה את הסטטוס לפני ההמרה' },
+        { status: 400 }
+      );
+    }
+
+    // Validate membership plan belongs to same tenant if provided
+    if (parsed.data.membershipPlanId) {
+      const plan = await prisma.membershipPlan.findFirst({
+        where: {
+          id: parsed.data.membershipPlanId,
+          tenantId: session.user.tenantId,
+          isActive: true,
+          deletedAt: null,
+        },
+      });
+      if (!plan) {
+        return NextResponse.json(
+          { error: 'תוכנית מנוי לא נמצאה' },
+          { status: 404 }
+        );
+      }
     }
 
     const transactionOps = [
@@ -61,7 +85,9 @@ export async function POST(
           customerId: id,
           tenantId: session.user.tenantId!,
           type: 'CONVERSION',
-          description: 'ליד הומר ללקוח',
+          description: parsed.data.membershipPlanId
+            ? 'ליד הומר ללקוח עם הקצאת מנוי'
+            : 'ליד הומר ללקוח',
           createdBy: session.user.id,
         },
       }),

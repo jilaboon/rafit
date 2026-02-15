@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,9 +43,20 @@ import {
   ArrowLeftRight,
   Eye,
 } from 'lucide-react';
+import { Label } from '@/components/ui/label';
 import { cn, formatDate } from '@/lib/utils';
 
 type LeadStatus = 'NEW' | 'CONTACTED' | 'QUALIFIED' | 'TRIAL' | 'CONVERTED' | 'LOST';
+
+interface MembershipPlan {
+  id: string;
+  name: string;
+  type: string;
+  price: number;
+  billingCycle?: string;
+  sessions?: number;
+  credits?: number;
+}
 
 interface Lead {
   id: string;
@@ -101,6 +113,7 @@ const STATUS_FILTER_TABS: { value: string; label: string }[] = [
 
 export default function LeadsPage() {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -110,6 +123,8 @@ export default function LeadsPage() {
   const [statusChangeTarget, setStatusChangeTarget] = useState<Lead | null>(null);
   const [newStatus, setNewStatus] = useState<LeadStatus | ''>('');
   const [convertTarget, setConvertTarget] = useState<Lead | null>(null);
+  const [selectedPlanId, setSelectedPlanId] = useState<string>('none');
+  const [convertSuccess, setConvertSuccess] = useState<Lead | null>(null);
 
   // Debounce search
   useEffect(() => {
@@ -136,6 +151,19 @@ export default function LeadsPage() {
   const total = data?.total ?? 0;
   const statusCounts = data?.statusCounts ?? {};
 
+  // Fetch membership plans for conversion dialog
+  const { data: plansData } = useQuery<{ plans: MembershipPlan[] }>({
+    queryKey: ['membership-plans'],
+    queryFn: async () => {
+      const response = await fetch('/api/membership-plans');
+      if (!response.ok) throw new Error('Failed to fetch plans');
+      return response.json();
+    },
+    enabled: !!convertTarget,
+  });
+
+  const membershipPlans = plansData?.plans ?? [];
+
   const statusChangeMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       const response = await fetch(`/api/leads/${id}/status`, {
@@ -158,18 +186,20 @@ export default function LeadsPage() {
   });
 
   const convertMutation = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async ({ id, membershipPlanId }: { id: string; membershipPlanId?: string }) => {
       const response = await fetch(`/api/leads/${id}/convert`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify(membershipPlanId ? { membershipPlanId } : {}),
       });
       const data = await response.json();
       if (!data.success) throw new Error(data.error || 'שגיאה בהמרת ליד');
       return data;
     },
     onSuccess: () => {
+      setConvertSuccess(convertTarget);
       setConvertTarget(null);
+      setSelectedPlanId('none');
       queryClient.invalidateQueries({ queryKey: ['leads'] });
     },
     onError: (error: Error) => {
@@ -184,7 +214,10 @@ export default function LeadsPage() {
 
   const handleConvert = () => {
     if (!convertTarget) return;
-    convertMutation.mutate(convertTarget.id);
+    convertMutation.mutate({
+      id: convertTarget.id,
+      membershipPlanId: selectedPlanId !== 'none' ? selectedPlanId : undefined,
+    });
   };
 
   // Calculate conversion rate
@@ -329,7 +362,7 @@ export default function LeadsPage() {
             <div className="space-y-3">
               {leads.map((lead) => {
                 const transitions = VALID_TRANSITIONS[lead.leadStatus];
-                const canConvert = lead.leadStatus === 'QUALIFIED' || lead.leadStatus === 'TRIAL';
+                const canConvert = lead.leadStatus !== 'CONVERTED' && lead.leadStatus !== 'LOST';
 
                 return (
                   <div
@@ -492,25 +525,116 @@ export default function LeadsPage() {
       </Dialog>
 
       {/* Convert Dialog */}
-      <Dialog open={!!convertTarget} onOpenChange={() => setConvertTarget(null)}>
-        <DialogContent>
+      <Dialog open={!!convertTarget} onOpenChange={() => {
+        setConvertTarget(null);
+        setSelectedPlanId('none');
+      }}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>המרת ליד ללקוח</DialogTitle>
             <DialogDescription>
-              האם להמיר את {convertTarget?.firstName} {convertTarget?.lastName} ללקוח פעיל?
-              <br />
-              פעולה זו תשנה את סטטוס הליד ל&quot;הומר&quot;.
+              המרת {convertTarget?.firstName} {convertTarget?.lastName} ללקוח פעיל במערכת.
             </DialogDescription>
           </DialogHeader>
+          <div className="space-y-4 py-4">
+            {/* Lead info summary */}
+            <div className="rounded-lg border bg-muted/50 p-3">
+              <div className="flex items-center gap-2 text-sm">
+                <span className="font-medium">{convertTarget?.firstName} {convertTarget?.lastName}</span>
+                <Badge
+                  variant="secondary"
+                  className={cn(
+                    'text-xs',
+                    convertTarget && STATUS_CONFIG[convertTarget.leadStatus]?.color
+                  )}
+                >
+                  {convertTarget && STATUS_CONFIG[convertTarget.leadStatus]?.label}
+                </Badge>
+              </div>
+              <div className="mt-1 flex flex-wrap gap-3 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <Mail className="h-3 w-3" />
+                  {convertTarget?.email}
+                </span>
+                {convertTarget?.phone && (
+                  <span className="flex items-center gap-1">
+                    <Phone className="h-3 w-3" />
+                    {convertTarget.phone}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Membership plan selection */}
+            <div className="space-y-2">
+              <Label>הקצאת מנוי (אופציונלי)</Label>
+              <Select value={selectedPlanId} onValueChange={setSelectedPlanId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="בחר תוכנית מנוי" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">ללא מנוי - המרה בלבד</SelectItem>
+                  {membershipPlans.map((plan) => (
+                    <SelectItem key={plan.id} value={plan.id}>
+                      <span className="flex items-center gap-2">
+                        {plan.name}
+                        <span className="text-muted-foreground">
+                          ({plan.price > 0 ? `₪${plan.price}` : 'חינם'})
+                        </span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {selectedPlanId !== 'none'
+                  ? 'מנוי פעיל ייוצר אוטומטית ללקוח החדש'
+                  : 'תוכל להקצות מנוי מאוחר יותר מפרופיל הלקוח'}
+              </p>
+            </div>
+          </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setConvertTarget(null)}>
+            <Button variant="outline" onClick={() => {
+              setConvertTarget(null);
+              setSelectedPlanId('none');
+            }}>
               ביטול
             </Button>
             <Button onClick={handleConvert} disabled={convertMutation.isPending}>
               {convertMutation.isPending && (
                 <Loader2 className="ml-2 h-4 w-4 animate-spin" />
               )}
+              <UserCheck className="ml-2 h-4 w-4" />
               המר ללקוח
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Conversion Success Dialog */}
+      <Dialog open={!!convertSuccess} onOpenChange={() => setConvertSuccess(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-green-600">
+              <UserCheck className="h-5 w-5" />
+              הליד הומר בהצלחה!
+            </DialogTitle>
+            <DialogDescription>
+              {convertSuccess?.firstName} {convertSuccess?.lastName} הוא כעת לקוח פעיל במערכת.
+              {selectedPlanId !== 'none' && ' מנוי פעיל הוקצה ללקוח.'}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col gap-2 sm:flex-row">
+            <Button variant="outline" onClick={() => setConvertSuccess(null)}>
+              חזור לרשימת הלידים
+            </Button>
+            <Button onClick={() => {
+              if (convertSuccess) {
+                router.push(`/dashboard/customers/${convertSuccess.id}`);
+              }
+            }}>
+              <Eye className="ml-2 h-4 w-4" />
+              עבור לפרופיל הלקוח
             </Button>
           </DialogFooter>
         </DialogContent>
