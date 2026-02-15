@@ -372,7 +372,7 @@ export default function LeadsPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <Link
-                          href={`/dashboard/customers/${lead.id}`}
+                          href={`/dashboard/leads/${lead.id}`}
                           className="font-medium hover:text-primary"
                         >
                           {lead.firstName} {lead.lastName}
@@ -435,9 +435,9 @@ export default function LeadsPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem asChild>
-                            <Link href={`/dashboard/customers/${lead.id}`}>
+                            <Link href={`/dashboard/leads/${lead.id}`}>
                               <Eye className="ml-2 h-4 w-4" />
-                              צפה בפרופיל
+                              צפה בליד
                             </Link>
                           </DropdownMenuItem>
                           {transitions.length > 0 && (
