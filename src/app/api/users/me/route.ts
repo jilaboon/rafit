@@ -7,6 +7,7 @@ import { createAuditLog } from '@/lib/security/audit';
 const updateProfileSchema = z.object({
   name: z.string().min(2).max(100).optional(),
   phone: z.string().max(20).optional().nullable(),
+  themePreference: z.enum(['light', 'dark', 'system']).optional(),
 });
 
 // GET /api/users/me - Get current user profile
@@ -25,6 +26,7 @@ export async function GET() {
         status: true,
         emailVerifiedAt: true,
         mfaEnabled: true,
+        themePreference: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -92,18 +94,19 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const { name, phone } = parsed.data;
+    const { name, phone, themePreference } = parsed.data;
 
     // Get current user for audit log
     const currentUser = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { name: true, phone: true },
+      select: { name: true, phone: true, themePreference: true },
     });
 
     // Build update data
     const updateData: Record<string, unknown> = {};
     if (name !== undefined) updateData.name = name;
     if (phone !== undefined) updateData.phone = phone;
+    if (themePreference !== undefined) updateData.themePreference = themePreference;
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json({ error: 'No fields to update' }, { status: 400 });

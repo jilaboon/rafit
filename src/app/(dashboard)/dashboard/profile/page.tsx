@@ -10,10 +10,11 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
-import { User, Mail, Phone, Shield, Building2, Calendar, CheckCircle, AlertCircle } from 'lucide-react';
-import { getInitials } from '@/lib/utils';
+import { User, Mail, Phone, Shield, Building2, Calendar, CheckCircle, AlertCircle, Monitor, Sun, Moon, Palette } from 'lucide-react';
+import { cn, getInitials } from '@/lib/utils';
 import { ROLE_LABELS } from '@/lib/auth/rbac';
 import { UserRole } from '@prisma/client';
+import { useTheme } from 'next-themes';
 
 interface UserProfile {
   id: string;
@@ -24,6 +25,7 @@ interface UserProfile {
   status: string;
   emailVerifiedAt: string | null;
   mfaEnabled: boolean;
+  themePreference: string;
   createdAt: string;
   updatedAt: string;
   tenantInfo: {
@@ -39,9 +41,16 @@ interface UserProfile {
   } | null;
 }
 
+const themeOptions = [
+  { value: 'system', label: 'מערכת', icon: Monitor },
+  { value: 'light', label: 'בהיר', icon: Sun },
+  { value: 'dark', label: 'כהה', icon: Moon },
+] as const;
+
 export default function ProfilePage() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { theme, setTheme } = useTheme();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [formData, setFormData] = useState({
@@ -101,6 +110,19 @@ export default function ProfilePage() {
 
   const hasChanges =
     profile && (formData.name !== profile.name || formData.phone !== (profile.phone || ''));
+
+  const handleThemeChange = async (newTheme: string) => {
+    setTheme(newTheme);
+    try {
+      await fetch('/api/users/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ themePreference: newTheme }),
+      });
+    } catch {
+      // Theme still applied locally
+    }
+  };
 
   if (isLoading) {
     return (
@@ -269,6 +291,36 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Appearance */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Palette className="h-5 w-5" />
+            מראה
+          </CardTitle>
+          <CardDescription>בחר את ערכת הנושא המועדפת עליך</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-3">
+            {themeOptions.map((option) => (
+              <button
+                key={option.value}
+                onClick={() => handleThemeChange(option.value)}
+                className={cn(
+                  'flex flex-1 flex-col items-center gap-2 rounded-lg border-2 p-4 transition-colors',
+                  theme === option.value
+                    ? 'border-primary bg-primary/5'
+                    : 'border-muted hover:border-muted-foreground/25'
+                )}
+              >
+                <option.icon className="h-5 w-5" />
+                <span className="text-sm font-medium">{option.label}</span>
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Account Info */}
       <Card>

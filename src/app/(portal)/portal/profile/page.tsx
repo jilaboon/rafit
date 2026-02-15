@@ -4,9 +4,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, LogOut, Save } from 'lucide-react';
+import { Loader2, LogOut, Save, Monitor, Sun, Moon } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { useState, useEffect } from 'react';
+import { useTheme } from 'next-themes';
+import { cn } from '@/lib/utils';
 
 interface ProfileData {
   id: string;
@@ -21,8 +23,15 @@ interface ProfileData {
   emergencyPhone: string | null;
 }
 
+const portalThemeOptions = [
+  { value: 'system', label: 'מערכת', icon: Monitor },
+  { value: 'light', label: 'בהיר', icon: Sun },
+  { value: 'dark', label: 'כהה', icon: Moon },
+] as const;
+
 export default function PortalProfilePage() {
   const queryClient = useQueryClient();
+  const { theme, setTheme } = useTheme();
 
   const { data, isLoading } = useQuery({
     queryKey: ['portal-profile'],
@@ -180,8 +189,37 @@ export default function PortalProfilePage() {
         </Button>
       </div>
 
+      {/* Appearance */}
+      <div className="mt-8 border-t pt-6">
+        <Label className="text-muted-foreground mb-3 block">מראה</Label>
+        <div className="flex gap-3">
+          {portalThemeOptions.map((option) => (
+            <button
+              key={option.value}
+              onClick={() => {
+                setTheme(option.value);
+                fetch('/api/users/me', {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ themePreference: option.value }),
+                }).catch(() => {});
+              }}
+              className={cn(
+                'flex flex-1 flex-col items-center gap-2 rounded-lg border-2 p-3 transition-colors',
+                theme === option.value
+                  ? 'border-primary bg-primary/5'
+                  : 'border-muted hover:border-muted-foreground/25'
+              )}
+            >
+              <option.icon className="h-5 w-5" />
+              <span className="text-xs font-medium">{option.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Logout */}
-      <div className="mt-12 border-t pt-6">
+      <div className="mt-8 border-t pt-6">
         <Button
           variant="outline"
           className="w-full text-destructive hover:text-destructive"

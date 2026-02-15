@@ -40,9 +40,12 @@ import { UserRole } from '@prisma/client';
 import { Permission, hasAnyPermission } from '@/lib/auth/rbac';
 import { Badge } from '@/components/ui/badge';
 import { ROLE_LABELS } from '@/lib/auth/rbac';
+import { BranchSelector } from '@/components/layout/branch-selector';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 interface DashboardShellProps {
   children: React.ReactNode;
+  tenantName?: string;
   user: {
     id: string;
     email: string;
@@ -132,7 +135,7 @@ const navigation: NavItem[] = [
   },
 ];
 
-export function DashboardShell({ children, user }: DashboardShellProps) {
+export function DashboardShell({ children, user, tenantName }: DashboardShellProps) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -169,13 +172,20 @@ export function DashboardShell({ children, user }: DashboardShellProps) {
         )}
       >
         <div className="flex h-full flex-col">
-          {/* Logo */}
+          {/* Logo & Tenant Name */}
           <div className="flex h-16 items-center justify-between border-b px-6">
             <Link href="/dashboard" className="flex items-center gap-2">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
                 <span className="brand-name text-lg font-bold text-primary-foreground">R</span>
               </div>
-              <span className="brand-name text-xl font-bold">RAFIT</span>
+              <div className="flex flex-col">
+                <span className="brand-name text-xl font-bold leading-tight">RAFIT</span>
+                {tenantName && (
+                  <span className="text-[11px] text-muted-foreground leading-tight truncate max-w-[140px]">
+                    {tenantName}
+                  </span>
+                )}
+              </div>
             </Link>
             <Button
               variant="ghost"
@@ -284,6 +294,12 @@ export function DashboardShell({ children, user }: DashboardShellProps) {
           </Button>
 
           <div className="flex-1" />
+
+          {/* Branch Selector */}
+          <BranchSelector />
+
+          {/* Theme toggle */}
+          <ThemeToggle />
 
           {/* Notifications */}
           <Button variant="ghost" size="icon" className="relative">

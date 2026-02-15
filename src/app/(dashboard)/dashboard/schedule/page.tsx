@@ -29,6 +29,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useBranch } from '@/components/providers/branch-provider';
 
 interface ClassInfo {
   id: string;
@@ -56,6 +57,7 @@ export default function SchedulePage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>('day');
   const [cancelClass, setCancelClass] = useState<ClassInfo | null>(null);
+  const { selectedBranchId } = useBranch();
 
   const weekStart = startOfWeek(selectedDate, { weekStartsOn: 0 });
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -67,9 +69,11 @@ export default function SchedulePage() {
   const dateStr = format(selectedDate, 'yyyy-MM-dd');
 
   const { data, isLoading } = useQuery<{ classes: ClassInfo[] }>({
-    queryKey: ['classes', { date: dateStr }],
+    queryKey: ['classes', { date: dateStr, branchId: selectedBranchId }],
     queryFn: async () => {
-      const response = await fetch(`/api/classes?date=${dateStr}`);
+      const params = new URLSearchParams({ date: dateStr });
+      if (selectedBranchId) params.set('branchId', selectedBranchId);
+      const response = await fetch(`/api/classes?${params}`);
       if (!response.ok) throw new Error('Failed to fetch classes');
       return response.json();
     },

@@ -16,6 +16,7 @@ import {
 import { Search, Check, Clock, Users, UserCheck, AlertCircle, AlertTriangle, Cake, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn, getInitials, formatTime } from '@/lib/utils';
+import { useBranch } from '@/components/providers/branch-provider';
 
 interface ClassInfo {
   id: string;
@@ -50,12 +51,16 @@ export default function CheckinPage() {
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedMedical, setExpandedMedical] = useState<Set<string>>(new Set());
+  const { selectedBranchId } = useBranch();
 
   // Fetch today's classes
   const { data: classesData, isLoading } = useQuery<{ classes: ClassInfo[] }>({
-    queryKey: ['checkin-classes'],
+    queryKey: ['checkin-classes', { branchId: selectedBranchId }],
     queryFn: async () => {
-      const response = await fetch('/api/classes/today');
+      const params = new URLSearchParams();
+      if (selectedBranchId) params.set('branchId', selectedBranchId);
+      const url = params.toString() ? `/api/classes/today?${params}` : '/api/classes/today';
+      const response = await fetch(url);
       const data = await response.json();
       if (data.classes?.length > 0 && !selectedClassId) {
         const now = new Date();

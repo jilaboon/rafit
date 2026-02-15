@@ -1,28 +1,37 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { requirePermission, handleAuthError } from '@/lib/auth/permissions';
 
 // GET /api/classes/today - Get today's classes for check-in
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await requirePermission('schedule:read');
+
+    const { searchParams } = new URL(request.url);
+    const branchId = searchParams.get('branchId');
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const classes = await prisma.classInstance.findMany({
-      where: {
-        branch: {
-          tenantId: session.user.tenantId,
-        },
-        startTime: {
-          gte: today,
-          lt: tomorrow,
-        },
-        isCancelled: false,
+    const where: Record<string, unknown> = {
+      branch: {
+        tenantId: session.user.tenantId,
       },
+      startTime: {
+        gte: today,
+        lt: tomorrow,
+      },
+      isCancelled: false,
+    };
+
+    if (branchId) {
+      where.branchId = branchId;
+    }
+
+    const classes = await prisma.classInstance.findMany({
+      where,
       include: {
         branch: {
           select: {

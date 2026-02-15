@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth/config';
+import prisma from '@/lib/db';
 import { DashboardShell } from '@/components/layout/dashboard-shell';
 import { ImpersonationBanner } from '@/components/admin/impersonation-banner';
 
@@ -24,13 +25,23 @@ export default async function DashboardLayout({
     redirect('/admin');
   }
 
+  // Fetch tenant name for display in sidebar
+  let tenantName: string | undefined;
+  if (session.user.tenantId) {
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: session.user.tenantId },
+      select: { name: true },
+    });
+    tenantName = tenant?.name ?? undefined;
+  }
+
   return (
     <>
       {/* Show impersonation banner if super admin is impersonating */}
       {session.user.isImpersonating && (
         <ImpersonationBanner impersonatedUserId={session.user.impersonatedUserId} />
       )}
-      <DashboardShell user={session.user}>{children}</DashboardShell>
+      <DashboardShell user={session.user} tenantName={tenantName}>{children}</DashboardShell>
     </>
   );
 }
