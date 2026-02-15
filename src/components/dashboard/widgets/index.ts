@@ -9,3 +9,4 @@ export { QuickActionsWidget } from './quick-actions-widget';
 export { RecentActivityWidget } from './recent-activity-widget';
 export { PaymentsWidget } from './payments-widget';
 export { TeamOverviewWidget } from './team-overview-widget';
+export { TaskWidget } from './task-widget';

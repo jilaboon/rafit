@@ -8,6 +8,7 @@ import {
   RecentActivityWidget,
   TeamOverviewWidget,
   PaymentsWidget,
+  TaskWidget,
 } from '../widgets';
 
 export function AdminDashboard() {
@@ -24,6 +25,9 @@ export function AdminDashboard() {
 
       {/* Quick Actions */}
       <QuickActionsWidget />
+
+      {/* Tasks */}
+      <TaskWidget />
 
       {/* Main Content Grid */}
       <div className="grid gap-6 lg:grid-cols-2">

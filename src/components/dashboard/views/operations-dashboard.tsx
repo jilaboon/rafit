@@ -6,6 +6,7 @@ import {
   CheckinWidget,
   QuickActionsWidget,
   RecentActivityWidget,
+  TaskWidget,
 } from '../widgets';
 
 export function OperationsDashboard() {
@@ -22,6 +23,9 @@ export function OperationsDashboard() {
 
       {/* Stats Overview */}
       <DashboardStatsWidget />
+
+      {/* Tasks */}
+      <TaskWidget />
 
       {/* Main Content Grid */}
       <div className="grid gap-6 lg:grid-cols-2">

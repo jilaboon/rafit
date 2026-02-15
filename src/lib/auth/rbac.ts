@@ -71,6 +71,17 @@ export const PERMISSIONS = {
   'report:members': 'View member reports',
   'report:export': 'Export reports',
 
+  // Lead management
+  'lead:read': 'View leads',
+  'lead:update': 'Update lead status',
+  'lead:convert': 'Convert lead to customer',
+
+  // Task management
+  'task:create': 'Create tasks',
+  'task:read': 'View tasks',
+  'task:update': 'Update tasks',
+  'task:delete': 'Delete tasks',
+
   // Automation management
   'automation:create': 'Create automations',
   'automation:read': 'View automations',
@@ -133,6 +144,13 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'report:attendance',
     'report:members',
     'report:export',
+    'lead:read',
+    'lead:update',
+    'lead:convert',
+    'task:create',
+    'task:read',
+    'task:update',
+    'task:delete',
     'automation:create',
     'automation:read',
     'automation:update',
@@ -167,6 +185,13 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'payment:read',
     'report:attendance',
     'report:members',
+    'lead:read',
+    'lead:update',
+    'lead:convert',
+    'task:create',
+    'task:read',
+    'task:update',
+    'task:delete',
     'automation:read',
   ],
 
@@ -176,6 +201,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'booking:checkin',
     'customer:read',
     'report:attendance',
+    'task:read',
   ],
 
   FRONT_DESK: [
@@ -190,6 +216,11 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'membership:read',
     'payment:create',
     'payment:read',
+    'lead:read',
+    'lead:update',
+    'task:create',
+    'task:read',
+    'task:update',
   ],
 
   ACCOUNTANT: [

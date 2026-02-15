@@ -32,6 +32,8 @@ import {
   ChevronLeft,
   UserCog,
   ClipboardCheck,
+  Target,
+  CheckSquare,
 } from 'lucide-react';
 import { getInitials } from '@/lib/utils';
 import { UserRole } from '@prisma/client';
@@ -79,6 +81,18 @@ const navigation: NavItem[] = [
     href: '/dashboard/customers',
     icon: Users,
     permissions: ['customer:read'],
+  },
+  {
+    name: 'לידים',
+    href: '/dashboard/leads',
+    icon: Target,
+    permissions: ['lead:read'],
+  },
+  {
+    name: 'משימות',
+    href: '/dashboard/tasks',
+    icon: CheckSquare,
+    permissions: ['task:read'],
   },
   {
     name: 'חברויות',

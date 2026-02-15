@@ -1,4 +1,4 @@
-import { PrismaClient, UserRole, ServiceType, DayOfWeek, LeadStatus } from '@prisma/client';
+import { PrismaClient, UserRole, ServiceType, DayOfWeek, LeadStatus, TaskPriority, TaskStatus } from '@prisma/client';
 import { hash } from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -8,6 +8,8 @@ async function main() {
 
   // Clean existing data (in reverse order of dependencies)
   console.log('🧹 Cleaning existing data...');
+  await prisma.task.deleteMany();
+  await prisma.leadActivity.deleteMany();
   await prisma.notificationJob.deleteMany();
   await prisma.auditLog.deleteMany();
   await prisma.booking.deleteMany();
@@ -1683,6 +1685,303 @@ async function main() {
     await prisma.auditLog.create({ data: log as any });
   }
 
+  // Create additional leads for pipeline demo
+  console.log('🎯 Creating additional leads...');
+  const lead2 = await prisma.customer.create({
+    data: {
+      tenantId: tenant.id,
+      email: 'lead2@demo.com',
+      firstName: 'ענבל',
+      lastName: 'שושן',
+      phone: '050-9012345',
+      leadStatus: LeadStatus.CONTACTED,
+      source: 'אינסטגרם',
+      marketingConsent: true,
+    },
+  });
+
+  const lead3 = await prisma.customer.create({
+    data: {
+      tenantId: tenant.id,
+      email: 'lead3@demo.com',
+      firstName: 'רועי',
+      lastName: 'אלון',
+      phone: '050-0123456',
+      leadStatus: LeadStatus.LOST,
+      source: 'גוגל',
+      notes: 'חיפש שיעורי יוגה, בחר סטודיו אחר בגלל מחיר',
+    },
+  });
+
+  const lead4 = await prisma.customer.create({
+    data: {
+      tenantId: tenant.id,
+      email: 'lead4@demo.com',
+      firstName: 'הילה',
+      lastName: 'פישר',
+      phone: '050-1122334',
+      leadStatus: LeadStatus.NEW,
+      source: 'פייסבוק',
+    },
+  });
+
+  // Create lead activities for existing and new leads
+  console.log('📋 Creating lead activities...');
+  const leadActivities = [
+    // דני לוי (NEW lead - customers[3])
+    {
+      customerId: customers[3].id,
+      tenantId: tenant.id,
+      type: 'NOTE' as const,
+      description: 'ליד חדש מהאתר, התעניין בשיעורי יוגה',
+      createdBy: frontDeskUser.id,
+      createdAt: createDateTime(-3, 10, 0),
+    },
+    // נעמה וינברג (QUALIFIED - customers[8])
+    {
+      customerId: customers[8].id,
+      tenantId: tenant.id,
+      type: 'NOTE' as const,
+      description: 'ליד חדש - הגיעה דרך חבר מביא חבר',
+      createdBy: frontDeskUser.id,
+      createdAt: createDateTime(-7, 9, 0),
+    },
+    {
+      customerId: customers[8].id,
+      tenantId: tenant.id,
+      type: 'CALL' as const,
+      description: 'שיחת היכרות - מתעניינת בפילאטיס, מגיעה לשיעור ניסיון',
+      createdBy: adminUser.id,
+      createdAt: createDateTime(-5, 14, 0),
+    },
+    {
+      customerId: customers[8].id,
+      tenantId: tenant.id,
+      type: 'STATUS_CHANGE' as const,
+      description: 'שינוי סטטוס מ-NEW ל-CONTACTED',
+      createdBy: adminUser.id,
+      createdAt: createDateTime(-5, 14, 5),
+    },
+    {
+      customerId: customers[8].id,
+      tenantId: tenant.id,
+      type: 'STATUS_CHANGE' as const,
+      description: 'שינוי סטטוס מ-CONTACTED ל-QUALIFIED',
+      createdBy: adminUser.id,
+      createdAt: createDateTime(-2, 11, 0),
+    },
+    // יעל אברהם (TRIAL - customers[2])
+    {
+      customerId: customers[2].id,
+      tenantId: tenant.id,
+      type: 'STATUS_CHANGE' as const,
+      description: 'שינוי סטטוס מ-NEW ל-TRIAL',
+      createdBy: frontDeskUser.id,
+      createdAt: createDateTime(-4, 16, 0),
+    },
+    {
+      customerId: customers[2].id,
+      tenantId: tenant.id,
+      type: 'NOTE' as const,
+      description: 'הגיעה לשיעור ניסיון יוגה ערב, התלהבה מאוד',
+      createdBy: coachUser.id,
+      createdAt: createDateTime(-3, 19, 30),
+    },
+    // ענבל שושן (CONTACTED)
+    {
+      customerId: lead2.id,
+      tenantId: tenant.id,
+      type: 'NOTE' as const,
+      description: 'פנתה דרך אינסטגרם, שואלת על מחירים',
+      createdBy: frontDeskUser.id,
+      createdAt: createDateTime(-2, 11, 0),
+    },
+    {
+      customerId: lead2.id,
+      tenantId: tenant.id,
+      type: 'EMAIL' as const,
+      description: 'נשלח מייל עם מחירון ופרטי שיעור ניסיון',
+      createdBy: adminUser.id,
+      createdAt: createDateTime(-1, 9, 0),
+    },
+    {
+      customerId: lead2.id,
+      tenantId: tenant.id,
+      type: 'STATUS_CHANGE' as const,
+      description: 'שינוי סטטוס מ-NEW ל-CONTACTED',
+      createdBy: adminUser.id,
+      createdAt: createDateTime(-1, 9, 5),
+    },
+    // רועי אלון (LOST)
+    {
+      customerId: lead3.id,
+      tenantId: tenant.id,
+      type: 'CALL' as const,
+      description: 'שיחת היכרות - מתעניין ביוגה, משווה מחירים',
+      createdBy: frontDeskUser.id,
+      createdAt: createDateTime(-10, 11, 0),
+    },
+    {
+      customerId: lead3.id,
+      tenantId: tenant.id,
+      type: 'STATUS_CHANGE' as const,
+      description: 'שינוי סטטוס מ-NEW ל-CONTACTED',
+      createdBy: frontDeskUser.id,
+      createdAt: createDateTime(-10, 11, 5),
+    },
+    {
+      customerId: lead3.id,
+      tenantId: tenant.id,
+      type: 'STATUS_CHANGE' as const,
+      description: 'שינוי סטטוס ל-LOST - בחר סטודיו אחר',
+      createdBy: adminUser.id,
+      createdAt: createDateTime(-6, 15, 0),
+    },
+  ];
+
+  for (const activity of leadActivities) {
+    await prisma.leadActivity.create({ data: activity as any });
+  }
+
+  // Create demo tasks
+  console.log('✅ Creating demo tasks...');
+
+  // Get tenantUser IDs for task assignment
+  const adminTenantUserId = adminTenantUser.id;
+  const ownerTenantUserId = ownerTenantUser.id;
+  const coachTenantUserId = coachTenantUser.id;
+
+  const tasks = [
+    // Overdue tasks
+    {
+      tenantId: tenant.id,
+      title: 'לחזור לנעמה וינברג בנוגע לשיעור ניסיון',
+      description: 'ליד מוכשר - הגיעה דרך חבר מביא חבר. לתאם שיעור ניסיון',
+      status: TaskStatus.PENDING,
+      priority: TaskPriority.HIGH,
+      dueDate: createDateTime(-2, 17, 0),
+      assigneeId: adminTenantUserId,
+      createdById: ownerTenantUserId,
+      entityType: 'customer',
+      entityId: customers[8].id,
+    },
+    {
+      tenantId: tenant.id,
+      title: 'לטפל בתשלום ממתין של תומר שפירא',
+      description: 'תשלום מנוי חודשי ממתין - לברר מצב תשלום',
+      status: TaskStatus.PENDING,
+      priority: TaskPriority.URGENT,
+      dueDate: createDateTime(-1, 12, 0),
+      assigneeId: adminTenantUserId,
+      createdById: ownerTenantUserId,
+      entityType: 'customer',
+      entityId: customers[7].id,
+    },
+    // Due today
+    {
+      tenantId: tenant.id,
+      title: 'להתקשר לענבל שושן - מעקב אחרי מייל',
+      description: 'נשלח מייל עם מחירון אתמול, לוודא שקיבלה ולשאול אם מעוניינת בשיעור ניסיון',
+      status: TaskStatus.IN_PROGRESS,
+      priority: TaskPriority.MEDIUM,
+      dueDate: createDateTime(0, 14, 0),
+      assigneeId: adminTenantUserId,
+      createdById: adminTenantUserId,
+      entityType: 'customer',
+      entityId: lead2.id,
+    },
+    {
+      tenantId: tenant.id,
+      title: 'לעדכן הערות רפואיות של מיכל רוזן',
+      description: 'ביקשה לעדכן את הרופא שלה בנוגע לאסתמה - לוודא שהמידע עדכני',
+      status: TaskStatus.PENDING,
+      priority: TaskPriority.MEDIUM,
+      dueDate: createDateTime(0, 16, 0),
+      assigneeId: adminTenantUserId,
+      createdById: coachTenantUserId,
+      entityType: 'customer',
+      entityId: customers[4].id,
+    },
+    // Future tasks
+    {
+      tenantId: tenant.id,
+      title: 'לשלוח תזכורת חידוש מנוי לרחל דוידוביץ',
+      description: 'המנוי החודשי מתחדש בעוד שבוע - לשלוח תזכורת',
+      status: TaskStatus.PENDING,
+      priority: TaskPriority.LOW,
+      dueDate: createDateTime(5, 10, 0),
+      assigneeId: adminTenantUserId,
+      createdById: ownerTenantUserId,
+      entityType: 'customer',
+      entityId: customers[0].id,
+    },
+    {
+      tenantId: tenant.id,
+      title: 'להכין לוח שיעורים לחודש הבא',
+      description: 'לתכנן את לוח השיעורים לחודש הבא כולל חגים ומדריכים',
+      status: TaskStatus.PENDING,
+      priority: TaskPriority.HIGH,
+      dueDate: createDateTime(7, 12, 0),
+      assigneeId: ownerTenantUserId,
+      createdById: ownerTenantUserId,
+    },
+    // Completed tasks
+    {
+      tenantId: tenant.id,
+      title: 'לתאם שיעור ניסיון ליעל אברהם',
+      description: 'ליד חדש - מתעניינת ביוגה. תואם שיעור ניסיון',
+      status: TaskStatus.COMPLETED,
+      priority: TaskPriority.HIGH,
+      dueDate: createDateTime(-4, 12, 0),
+      assigneeId: adminTenantUserId,
+      createdById: ownerTenantUserId,
+      completedAt: createDateTime(-4, 11, 30),
+      entityType: 'customer',
+      entityId: customers[2].id,
+    },
+    {
+      tenantId: tenant.id,
+      title: 'לבדוק ציוד באולם כושר',
+      description: 'בדיקת בטיחות שגרתית לציוד באולם',
+      status: TaskStatus.COMPLETED,
+      priority: TaskPriority.MEDIUM,
+      dueDate: createDateTime(-3, 9, 0),
+      assigneeId: coachTenantUserId,
+      createdById: ownerTenantUserId,
+      completedAt: createDateTime(-3, 8, 45),
+    },
+    // Coach task
+    {
+      tenantId: tenant.id,
+      title: 'להכין תוכנית אימונים לגיל מזרחי',
+      description: 'לקוח חדש באימון אישי - להכין תוכנית מותאמת',
+      status: TaskStatus.IN_PROGRESS,
+      priority: TaskPriority.HIGH,
+      dueDate: createDateTime(1, 10, 0),
+      assigneeId: coachTenantUserId,
+      createdById: adminTenantUserId,
+      entityType: 'customer',
+      entityId: customers[9].id,
+    },
+    // Cancelled task
+    {
+      tenantId: tenant.id,
+      title: 'להתקשר לרועי אלון - ניסיון שימור',
+      description: 'ליד שאבד - לנסות להחזיר עם הצעה מיוחדת',
+      status: TaskStatus.CANCELLED,
+      priority: TaskPriority.LOW,
+      dueDate: createDateTime(-5, 14, 0),
+      assigneeId: adminTenantUserId,
+      createdById: ownerTenantUserId,
+      entityType: 'customer',
+      entityId: lead3.id,
+    },
+  ];
+
+  for (const task of tasks) {
+    await prisma.task.create({ data: task as any });
+  }
+
   console.log('✅ Seed completed successfully!');
   console.log('\n🛡️ Super Admin account:');
   console.log('   Email:    admin@rafit.com');
@@ -1700,10 +1999,12 @@ async function main() {
   console.log('   Customer:   customer1@demo.com  (רחל דוידוביץ)');
   console.log('\n📊 Demo data created:');
   console.log('   - 2 branches (Tel Aviv + Jerusalem)');
-  console.log('   - 10 customers');
+  console.log('   - 13 customers (7 converted, 3 leads, 1 trial, 1 qualified, 1 lost)');
   console.log('   - 27 class instances across the week (Sun-Thu)');
   console.log('   - ~35 bookings (confirmed, waitlisted, cancelled, no-show, completed)');
   console.log('   - 10 payments (6 completed, 2 pending, 1 failed, 1 refunded)');
+  console.log('   - 13 lead activities across the pipeline');
+  console.log('   - 10 tasks (2 overdue, 2 due today, 2 future, 2 completed, 1 in-progress, 1 cancelled)');
   console.log('   - Activity logs for the feed');
 }
 

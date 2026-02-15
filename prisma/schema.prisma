@@ -95,6 +95,29 @@ enum LeadStatus {
   LOST
 }
 
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum LeadActivityType {
+  CALL
+  EMAIL
+  MEETING
+  NOTE
+  STATUS_CHANGE
+  CONVERSION
+}
+
 enum AutomationTrigger {
   BOOKING_CREATED
   BOOKING_CANCELLED
@@ -454,14 +477,16 @@ model Customer {
   deletedAt     DateTime?     @map("deleted_at")
 
   // Relations
-  memberships   Membership[]
-  bookings      Booking[]
-  payments      Payment[]
-  creditBalance CreditBalance?
-  invitations   CustomerInvitation[]
+  memberships    Membership[]
+  bookings       Booking[]
+  payments       Payment[]
+  creditBalance  CreditBalance?
+  invitations    CustomerInvitation[]
+  leadActivities LeadActivity[]
 
   @@unique([tenantId, email])
   @@index([tenantId, lastName])
+  @@index([tenantId, leadStatus])
   @@map("customers")
 }
 
@@ -618,6 +643,57 @@ model Payment {
 
   @@index([customerId, createdAt])
   @@map("payments")
+}
+
+// =====================================================
+// LEAD ACTIVITIES
+// =====================================================
+
+model LeadActivity {
+  id          String           @id @default(uuid()) @db.Uuid
+  customerId  String           @map("customer_id") @db.Uuid
+  tenantId    String           @map("tenant_id") @db.Uuid
+  type        LeadActivityType
+  description String
+  createdBy   String           @map("created_by") @db.Uuid // Staff user ID
+  metadata    Json             @default("{}")
+
+  createdAt   DateTime         @default(now()) @map("created_at")
+
+  customer    Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId, createdAt])
+  @@index([tenantId, createdAt])
+  @@map("lead_activities")
+}
+
+// =====================================================
+// TASKS
+// =====================================================
+
+model Task {
+  id            String       @id @default(uuid()) @db.Uuid
+  tenantId      String       @map("tenant_id") @db.Uuid
+  title         String
+  description   String?
+  status        TaskStatus   @default(PENDING)
+  priority      TaskPriority @default(MEDIUM)
+  dueDate       DateTime?    @map("due_date")
+  assigneeId    String?      @map("assignee_id") @db.Uuid
+  createdById   String       @map("created_by_id") @db.Uuid
+
+  // Linked entity (polymorphic)
+  entityType    String?      @map("entity_type") // customer, booking, membership, lead
+  entityId      String?      @map("entity_id") @db.Uuid
+
+  completedAt   DateTime?    @map("completed_at")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+
+  @@index([tenantId, status, dueDate])
+  @@index([assigneeId, status])
+  @@index([entityType, entityId])
+  @@map("tasks")
 }
 
 // =====================================================

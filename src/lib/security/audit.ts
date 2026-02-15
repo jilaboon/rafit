@@ -49,6 +49,15 @@ export type AuditAction =
   | 'staff.profile_create'
   | 'staff.profile_update'
   | 'staff.profile_delete'
+  // Lead actions
+  | 'lead.status_change'
+  | 'lead.convert'
+  | 'lead.activity_create'
+  // Task actions
+  | 'task.create'
+  | 'task.update'
+  | 'task.status_change'
+  | 'task.delete'
   // Super Admin actions
   | 'admin.impersonate_start'
   | 'admin.impersonate_stop'
@@ -224,4 +233,13 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   'admin.tenant_update': 'עדכון עסק (מנהל על)',
   'admin.tenant_delete': 'מחיקת עסק (מנהל על)',
   'admin.user_view': 'צפייה במשתמש (מנהל על)',
+  // Lead actions
+  'lead.status_change': 'שינוי סטטוס ליד',
+  'lead.convert': 'המרת ליד ללקוח',
+  'lead.activity_create': 'יצירת פעילות ליד',
+  // Task actions
+  'task.create': 'יצירת משימה',
+  'task.update': 'עדכון משימה',
+  'task.status_change': 'שינוי סטטוס משימה',
+  'task.delete': 'ביטול משימה',
 };
