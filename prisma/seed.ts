@@ -565,7 +565,7 @@ async function main() {
         firstName: 'אורי',
         lastName: 'כהן',
         phone: '050-6789012',
-        dateOfBirth: new Date(1990, new Date().getMonth(), new Date().getDate()), // Birthday today for demo
+        dateOfBirth: new Date(Date.UTC(1990, new Date().getMonth(), new Date().getDate(), 12, 0, 0)), // Birthday today for demo (noon UTC to avoid timezone day-shift)
         leadStatus: LeadStatus.CONVERTED,
         marketingConsent: true,
         medicalNotes: 'בעיות ברכיים - להימנע מקפיצות ותרגילי אימפקט גבוה',
@@ -601,7 +601,7 @@ async function main() {
         firstName: 'מיכל',
         lastName: 'רוזן',
         phone: '050-1111111',
-        dateOfBirth: new Date(1985, 5, 15),
+        dateOfBirth: new Date(Date.UTC(1985, 5, 15, 12, 0, 0)),
         leadStatus: LeadStatus.CONVERTED,
         marketingConsent: true,
         medicalNotes: 'אסתמה - משאף תמיד זמין. יש ליידע במקרה של קוצר נשימה',
@@ -639,7 +639,7 @@ async function main() {
         firstName: 'תומר',
         lastName: 'שפירא',
         phone: '050-4444444',
-        dateOfBirth: new Date(1992, 10, 3),
+        dateOfBirth: new Date(Date.UTC(1992, 10, 3, 12, 0, 0)),
         leadStatus: LeadStatus.CONVERTED,
         marketingConsent: true,
         medicalNotes: 'פריצת דיסק L4-L5 - להימנע מהרמות כבדות וכפיפות גב',

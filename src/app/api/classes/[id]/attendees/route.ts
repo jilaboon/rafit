@@ -98,9 +98,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     );
 
     // Format attendees
-    const today = new Date();
-    const todayMonth = today.getMonth();
-    const todayDay = today.getDate();
+    // Use Israel timezone for "today" to handle UTC offset correctly
+    const nowInIsrael = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jerusalem' }));
+    const todayMonth = nowInIsrael.getMonth();
+    const todayDay = nowInIsrael.getDate();
 
     const attendees = classInstance.bookings.map((booking) => {
       const membership = membershipMap.get(booking.customerId);
@@ -116,11 +117,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         }
       }
 
-      // Check if today is the customer's birthday
+      // Check if today is the customer's birthday (compare using UTC for stored dates)
       let isBirthday = false;
       if (booking.customer.dateOfBirth) {
         const dob = new Date(booking.customer.dateOfBirth);
-        isBirthday = dob.getMonth() === todayMonth && dob.getDate() === todayDay;
+        isBirthday = dob.getUTCMonth() === todayMonth && dob.getUTCDate() === todayDay;
       }
 
       return {
