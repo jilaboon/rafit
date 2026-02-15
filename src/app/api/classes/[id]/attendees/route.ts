@@ -102,6 +102,27 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const nowInIsrael = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jerusalem' }));
     const todayMonth = nowInIsrael.getMonth();
     const todayDay = nowInIsrael.getDate();
+    const todayYear = nowInIsrael.getFullYear();
+
+    // Helper: calculate days between today and a birthday (month/day only)
+    // Returns negative if birthday was in the past, positive if upcoming, 0 if today
+    function getBirthdayProximity(dateOfBirth: Date): number | null {
+      const dobMonth = dateOfBirth.getUTCMonth();
+      const dobDay = dateOfBirth.getUTCDate();
+
+      // Build this year's birthday date in local timezone
+      const thisYearBirthday = new Date(todayYear, dobMonth, dobDay);
+      const today = new Date(todayYear, todayMonth, todayDay);
+
+      const diffMs = thisYearBirthday.getTime() - today.getTime();
+      const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+      // Only return if within ±3 days
+      if (diffDays >= -3 && diffDays <= 3) {
+        return diffDays;
+      }
+      return null;
+    }
 
     const attendees = classInstance.bookings.map((booking) => {
       const membership = membershipMap.get(booking.customerId);
@@ -117,11 +138,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         }
       }
 
-      // Check if today is the customer's birthday (compare using UTC for stored dates)
-      let isBirthday = false;
+      // Check birthday proximity (±3 days)
+      let birthdayProximity: number | null = null;
       if (booking.customer.dateOfBirth) {
         const dob = new Date(booking.customer.dateOfBirth);
-        isBirthday = dob.getUTCMonth() === todayMonth && dob.getUTCDate() === todayDay;
+        birthdayProximity = getBirthdayProximity(dob);
       }
 
       return {
@@ -134,7 +155,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         checkedIn: !!booking.checkedInAt,
         checkedInAt: booking.checkedInAt,
         status: booking.status,
-        isBirthday,
+        isBirthday: birthdayProximity === 0,
+        birthdayProximity,
         medicalNotes: booking.customer.medicalNotes,
       };
     });

@@ -43,6 +43,7 @@ interface Attendee {
   checkedIn: boolean;
   checkedInAt?: string;
   isBirthday?: boolean;
+  birthdayProximity?: number | null;
   medicalNotes?: string | null;
 }
 
@@ -326,10 +327,14 @@ export default function CheckinPage() {
                           <div>
                             <div className="flex items-center gap-2">
                               <p className="font-medium">{attendee.name}</p>
-                              {attendee.isBirthday && (
+                              {attendee.birthdayProximity != null && (
                                 <Badge variant="secondary" className="bg-pink-100 text-pink-700 dark:bg-pink-950 dark:text-pink-300">
                                   <Cake className="ml-1 h-3 w-3" />
-                                  יום הולדת!
+                                  {attendee.birthdayProximity === 0
+                                    ? 'יום הולדת היום!'
+                                    : attendee.birthdayProximity > 0
+                                      ? `יום הולדת בעוד ${attendee.birthdayProximity === 1 ? 'יום' : `${attendee.birthdayProximity} ימים`}`
+                                      : `יום הולדת לפני ${attendee.birthdayProximity === -1 ? 'יום' : `${Math.abs(attendee.birthdayProximity)} ימים`}`}
                                 </Badge>
                               )}
                               {attendee.medicalNotes && (

@@ -27,6 +27,7 @@ import {
   Loader2,
   X,
   AlertTriangle,
+  Building2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useBranch } from '@/components/providers/branch-provider';
@@ -273,6 +274,12 @@ export default function SchedulePage() {
                             <Users className="h-4 w-4" />
                             {cls.bookings.confirmed}/{cls.capacity}
                           </span>
+                          {!selectedBranchId && cls.branch && (
+                            <span className="flex items-center gap-1">
+                              <Building2 className="h-4 w-4" />
+                              {cls.branch.name}
+                            </span>
+                          )}
                           {cls.room && (
                             <span className="flex items-center gap-1">
                               <MapPin className="h-4 w-4" />
@@ -339,6 +346,12 @@ export default function SchedulePage() {
                         <span className="text-sm text-muted-foreground">
                           {format(new Date(cls.startTime), 'HH:mm')}
                         </span>
+                        {!selectedBranchId && cls.branch && (
+                          <span className="flex items-center gap-1 text-sm text-muted-foreground">
+                            <Building2 className="h-3 w-3" />
+                            {cls.branch.name}
+                          </span>
+                        )}
                       </div>
                     </div>
                   ))}
